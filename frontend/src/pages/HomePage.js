@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ComplaintForm } from '../components/ComplaintForm';
 import { DuplicateAlert } from '../components/DuplicateAlert';
 import { Header } from '../components/Header';
@@ -6,11 +7,13 @@ import { classificationService, complaintService, departmentService } from '../s
 import './HomePage.css';
 
 export const HomePage = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [classification, setClassification] = useState(null);
   const [duplicateAlert, setDuplicateAlert] = useState(null);
   const [formData, setFormData] = useState(null);
+  const [createdComplaintId, setCreatedComplaintId] = useState(null);
 
   useEffect(() => {
     const init = async () => {
@@ -27,6 +30,7 @@ export const HomePage = () => {
     setLoading(true);
     setMessage(null);
     setDuplicateAlert(null);
+    setCreatedComplaintId(null);
 
     try {
       const res = await classificationService.analyze(submittedFormData.title, submittedFormData.content);
@@ -80,9 +84,10 @@ export const HomePage = () => {
           });
         }
 
+        setCreatedComplaintId(res.data.id || null);
         setMessage({
           type: 'success',
-          text: `민원이 접수되었습니다. (ID: ${res.data.complaint_id})`,
+          text: `민원이 접수되었습니다. (접수번호: ${res.data.complaint_id})`,
         });
       }
     } catch (error) {
@@ -131,6 +136,15 @@ export const HomePage = () => {
               <button className="btn btn-confirm" onClick={handleSubmitComplaint} disabled={loading}>
                 {loading ? '접수중...' : '이 추천으로 접수'}
               </button>
+
+              {createdComplaintId && (
+                <button
+                  className="btn btn-cancel"
+                  onClick={() => navigate(`/dashboard?complaintId=${createdComplaintId}`)}
+                >
+                  공무원용에서 확인하기
+                </button>
+              )}
             </div>
           </div>
         )}

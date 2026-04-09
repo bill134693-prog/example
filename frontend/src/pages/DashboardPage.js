@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { ComplaintDetailModal } from '../components/ComplaintDetailModal';
 import { complaintService, departmentService } from '../services/api';
 import './DashboardPage.css';
 
 export const DashboardPage = () => {
+  const location = useLocation();
   const [complaints, setComplaints] = useState([]);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -14,21 +16,30 @@ export const DashboardPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const fetchComplaints = useCallback(async (page = 1) => {
-    setLoading(true);
-    try {
-      const params = { page, per_page: 10 };
-      if (selectedDepartment) params.department_id = Number(selectedDepartment);
-      if (statusFilter) params.status = statusFilter;
+  const targetComplaintId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const value = Number(params.get('complaintId') || 0);
+    return Number.isFinite(value) ? value : 0;
+  }, [location.search]);
 
-      const res = await complaintService.listComplaints(params);
-      setComplaints(res.data.complaints || []);
-      setTotalPages(res.data.pages || 1);
-      setCurrentPage(page);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedDepartment, statusFilter]);
+  const fetchComplaints = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      try {
+        const params = { page, per_page: 10 };
+        if (selectedDepartment) params.department_id = Number(selectedDepartment);
+        if (statusFilter) params.status = statusFilter;
+
+        const res = await complaintService.listComplaints(params);
+        setComplaints(res.data.complaints || []);
+        setTotalPages(res.data.pages || 1);
+        setCurrentPage(page);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [selectedDepartment, statusFilter]
+  );
 
   const fetchDepartments = async () => {
     try {
@@ -47,15 +58,28 @@ export const DashboardPage = () => {
     fetchComplaints(1);
   }, [fetchComplaints]);
 
+  useEffect(() => {
+    if (!targetComplaintId) return;
+
+    complaintService
+      .getComplaint(targetComplaintId)
+      .then((res) => setSelectedComplaint(res.data))
+      .catch(() => {
+        // ignore invalid query id
+      });
+  }, [targetComplaintId]);
+
   const formatDate = (value) => {
     if (!value) return '-';
     const date = new Date(value);
     return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
   };
 
+  const statusOptions = ['접수', '분류완료', '처리중', '답변완료', '종결', '취하', '이송', '반복민원알림'];
+
   return (
     <div className="dashboard-page">
-      <Header title="공무원 대시보드" description="접수된 민원을 조회하고 처리합니다" />
+      <Header title="공무원용" description="접수된 민원을 조회하고 처리합니다" />
 
       <div className="container">
         <div className="filter-section">
@@ -75,14 +99,11 @@ export const DashboardPage = () => {
             <label>상태</label>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="">전체</option>
-              <option value="접수">접수</option>
-              <option value="분류완료">분류완료</option>
-              <option value="처리중">처리중</option>
-              <option value="답변완료">답변완료</option>
-              <option value="종결">종결</option>
-              <option value="취하">취하</option>
-              <option value="이송">이송</option>
-              <option value="반복민원알림">반복민원알림</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -109,7 +130,7 @@ export const DashboardPage = () => {
                 </thead>
                 <tbody>
                   {complaints.map((c) => (
-                    <tr key={c.id}>
+                    <tr key={c.id} className={targetComplaintId === c.id ? 'target-row' : ''}>
                       <td>{formatDate(c.created_at)}</td>
                       <td>{formatDate(c.received_date)}</td>
                       <td className="title-cell" onClick={() => complaintService.getComplaint(c.id).then((r) => setSelectedComplaint(r.data))}>
@@ -142,7 +163,15 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {selectedComplaint && <ComplaintDetailModal complaint={selectedComplaint} onClose={() => { setSelectedComplaint(null); fetchComplaints(currentPage); }} />}
+      {selectedComplaint && (
+        <ComplaintDetailModal
+          complaint={selectedComplaint}
+          onClose={() => {
+            setSelectedComplaint(null);
+            fetchComplaints(currentPage);
+          }}
+        />
+      )}
     </div>
   );
 };

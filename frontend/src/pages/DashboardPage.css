@@ -47,6 +47,10 @@
   text-align: left;
 }
 
+.target-row {
+  background: #eef6ff;
+}
+
 .title-cell {
   cursor: pointer;
   color: #0b63ce;
