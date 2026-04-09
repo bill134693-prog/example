@@ -62,7 +62,12 @@ export const HomePage = () => {
         reason: buildRecommendationReason(basis),
       });
 
-      setMessage({ type: 'info', text: '추천 정보를 확인한 뒤 접수 버튼을 눌러주세요.' });
+      setMessage({
+        type: 'info',
+        text: res.data.fallback_local
+          ? '분석 API 연결이 불안정해 로컬 규칙 기반 추천을 표시했습니다. 추천 정보를 확인한 뒤 접수하세요.'
+          : '추천 정보를 확인한 뒤 접수 버튼을 눌러주세요.',
+      });
     } catch (error) {
       const status = error.response?.status;
       setMessage({

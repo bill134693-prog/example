@@ -24,7 +24,26 @@ class ComplaintClassificationEngine:
                 score = 0
                 for keyword in sub_meta.get("keywords", []):
                     if keyword.lower() in text:
-                        score += 1
+                        # Exact keyword match
+                        score += 2
+
+                # Intent-style weighted matching for common complaint questions.
+                # This helps when users use natural sentences instead of exact legal terms.
+                if dept_name == "고용노동부" and sub_name == "퇴직연금복지과":
+                    if any(k in text for k in ["퇴직금", "퇴직연금", "퇴직급여"]):
+                        score += 4
+                    if any(k in text for k in ["요건", "조건", "자격", "받을 수", "가능", "해당"]):
+                        score += 3
+                    if any(k in text for k in ["1년", "12개월", "365일", "360일", "계속근로", "근속"]):
+                        score += 3
+                    if any(k in text for k in ["주 15시간", "소정근로시간"]):
+                        score += 2
+
+                if dept_name == "고용노동부" and sub_name == "고객상담센터 인터넷상담과":
+                    if any(k in text for k in ["문의", "상담", "질문", "알려주세요", "답변"]):
+                        score += 3
+                    if any(k in text for k in ["온라인", "인터넷", "홈페이지"]):
+                        score += 2
                 scores[(dept_name, sub_name)] = score
         return scores
 

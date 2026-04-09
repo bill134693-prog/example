@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getLocalRecommendation } from './localRecommendation';
 
 const API_BASE =
   process.env.REACT_APP_API_URL ||
@@ -43,7 +44,13 @@ export const classificationService = {
     }
 
     // Last fallback: GET query style
-    return api.get('/classification/analyze', { params: { title, content } });
+    try {
+      return await api.get('/classification/analyze', { params: { title, content } });
+    } catch (error) {
+      // Final fallback: local rule-based recommendation.
+      // This guarantees 추천 부처/부서 화면 is still renderable.
+      return { data: getLocalRecommendation(title, content) };
+    }
   },
   batchClassify: (complaints) => api.post('/classification/batch', { complaints }),
 };
