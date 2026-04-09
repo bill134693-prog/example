@@ -143,6 +143,7 @@ export const HomePage = () => {
         });
       }
     } catch (error) {
+      console.error('createComplaint error', error);
       setMessage({
         type: 'error',
         text: `민원 접수 실패: ${error.response?.data?.error || error.message}`,

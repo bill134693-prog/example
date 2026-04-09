@@ -200,6 +200,12 @@ def create_complaint():
         return jsonify({"error": str(e)}), 500
 
 
+@bp.route("/submit", methods=["POST", "OPTIONS"])
+def submit_complaint():
+    # Dedicated endpoint to avoid environment-specific 405 issues on /complaints or /complaints/
+    return create_complaint()
+
+
 @bp.route("/<int:complaint_id>", methods=["GET"])
 def get_complaint(complaint_id: int):
     complaint = Complaint.query.get(complaint_id)

@@ -42,14 +42,32 @@ const normalizeClassificationResponse = (payload, title, content) => {
 
 export const complaintService = {
   createComplaint: async (data) => {
+    const tried = [];
     try {
       return await api.post('/complaints/', data);
     } catch (error) {
+      tried.push('/complaints/');
       if (error?.response?.status !== 405) throw error;
     }
 
-    // Fallback for strict-slash/proxy environments.
-    return api.post('/complaints', data);
+    try {
+      return await api.post('/complaints', data);
+    } catch (error) {
+      tried.push('/complaints');
+      if (error?.response?.status !== 405) throw error;
+    }
+
+    // Final fallback for environments with strict route handling.
+    try {
+      return await api.post('/complaints/submit', data);
+    } catch (error) {
+      const status = error?.response?.status;
+      const message = error?.response?.data?.error || error.message;
+      throw new Error(
+        `complaint submit failed after fallbacks (tried: ${tried.concat('/complaints/submit').join(', ')}): ` +
+          `${status ? `HTTP ${status} ` : ''}${message}`
+      );
+    }
   },
   getComplaint: (id) => api.get(`/complaints/${id}`),
   listComplaints: (params = {}) => api.get('/complaints/', { params }),
