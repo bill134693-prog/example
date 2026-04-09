@@ -46,6 +46,21 @@
     resize: vertical;
 }
 
+.resident-id-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.resident-id-inputs input {
+    width: calc(50% - 12px);
+}
+
+.resident-id-separator {
+    font-weight: 700;
+    color: #666;
+}
+
 .submit-btn {
     width: 100%;
     padding: 12px;
@@ -66,4 +81,10 @@
 .submit-btn:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
+}
+
+@media (max-width: 700px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
 }
