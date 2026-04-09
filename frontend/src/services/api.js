@@ -27,7 +27,24 @@ export const complaintService = {
 };
 
 export const classificationService = {
-  analyze: (title, content) => api.post('/classification/analyze', { title, content }),
+  analyze: async (title, content) => {
+    // Fallback chain for environments that can return 405
+    // due to path/method handling differences.
+    try {
+      return await api.post('/classification/analyze', { title, content });
+    } catch (error) {
+      if (error?.response?.status !== 405) throw error;
+    }
+
+    try {
+      return await api.post('/classification/analyze/', { title, content });
+    } catch (error) {
+      if (error?.response?.status !== 405) throw error;
+    }
+
+    // Last fallback: GET query style
+    return api.get('/classification/analyze', { params: { title, content } });
+  },
   batchClassify: (complaints) => api.post('/classification/batch', { complaints }),
 };
 
