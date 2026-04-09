@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+﻿from flask import Blueprint, jsonify, request
 
 from app import db
 from app.legal_basis_data import LEGAL_CLASSIFICATION_RULES
@@ -130,58 +130,38 @@ def init_sample_data():
             Department.query.delete()
             db.session.flush()
 
-        if Department.query.count() > 0:
-            # upsert style: ensure codes from rules exist
-            existing_by_code = {d.code: d for d in Department.query.all()}
-            for dept_data in rows:
-                dept = existing_by_code.get(dept_data["code"])
-                if not dept:
-                    dept = Department(name=dept_data["name"], code=dept_data["code"], description=dept_data["description"])
-                    db.session.add(dept)
-                    db.session.flush()
-                else:
-                    dept.name = dept_data["name"]
-                    dept.description = dept_data["description"]
-
-                existing_subs = {s.code: s for s in SubDepartment.query.filter_by(department_id=dept.id).all()}
-                for sub_data in dept_data["sub_departments"]:
-                    sub = existing_subs.get(sub_data["code"])
-                    if not sub:
-                        db.session.add(
-                            SubDepartment(
-                                department_id=dept.id,
-                                name=sub_data["name"],
-                                code=sub_data["code"],
-                                keywords=sub_data.get("keywords", ""),
-                                description=sub_data.get("description", ""),
-                            )
-                        )
-                    else:
-                        sub.name = sub_data["name"]
-                        sub.keywords = sub_data.get("keywords", "")
-                        sub.description = sub_data.get("description", "")
-
-            db.session.commit()
-            return jsonify({"success": True, "message": "department seed synchronized"}), 200
+        existing_by_code = {d.code: d for d in Department.query.all()}
 
         for dept_data in rows:
-            dept = Department(name=dept_data["name"], code=dept_data["code"], description=dept_data["description"])
-            db.session.add(dept)
-            db.session.flush()
+            dept = existing_by_code.get(dept_data["code"])
+            if not dept:
+                dept = Department(name=dept_data["name"], code=dept_data["code"], description=dept_data["description"])
+                db.session.add(dept)
+                db.session.flush()
+            else:
+                dept.name = dept_data["name"]
+                dept.description = dept_data["description"]
 
+            existing_subs = {s.code: s for s in SubDepartment.query.filter_by(department_id=dept.id).all()}
             for sub_data in dept_data["sub_departments"]:
-                db.session.add(
-                    SubDepartment(
-                        department_id=dept.id,
-                        name=sub_data["name"],
-                        code=sub_data["code"],
-                        keywords=sub_data.get("keywords", ""),
-                        description=sub_data.get("description", ""),
+                sub = existing_subs.get(sub_data["code"])
+                if not sub:
+                    db.session.add(
+                        SubDepartment(
+                            department_id=dept.id,
+                            name=sub_data["name"],
+                            code=sub_data["code"],
+                            keywords=sub_data.get("keywords", ""),
+                            description=sub_data.get("description", ""),
+                        )
                     )
-                )
+                else:
+                    sub.name = sub_data["name"]
+                    sub.keywords = sub_data.get("keywords", "")
+                    sub.description = sub_data.get("description", "")
 
         db.session.commit()
-        return jsonify({"success": True, "message": "department seed initialized", "total_departments": len(rows)}), 201
+        return jsonify({"success": True, "message": "department seed synchronized", "total_departments": len(rows)}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

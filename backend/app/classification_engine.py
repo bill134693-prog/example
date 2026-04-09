@@ -1,4 +1,4 @@
-import re
+﻿import re
 from typing import Dict, List, Tuple
 
 from app.legal_basis_data import LEGAL_CLASSIFICATION_RULES
@@ -9,14 +9,13 @@ class ComplaintClassificationEngine:
 
     def __init__(self) -> None:
         self.rules = LEGAL_CLASSIFICATION_RULES
-        self.default_department = "국토교통부"
-        self.default_sub_department = "도로과"
+        self.default_department = "고용노동부"
+        self.default_sub_department = "고용서비스기반과"
 
     @staticmethod
     def _normalize_text(text: str) -> str:
         text = text or ""
-        text = re.sub(r"\s+", " ", text).strip().lower()
-        return text
+        return re.sub(r"\s+", " ", text).strip().lower()
 
     def _score_candidates(self, text: str) -> Dict[Tuple[str, str], int]:
         scores: Dict[Tuple[str, str], int] = {}
@@ -30,13 +29,13 @@ class ComplaintClassificationEngine:
         return scores
 
     def _pick_best(self, scores: Dict[Tuple[str, str], int]) -> Tuple[str, str, int]:
-        best_key = (self.default_department, self.default_sub_department)
+        best = (self.default_department, self.default_sub_department)
         best_score = -1
         for key, score in scores.items():
             if score > best_score:
-                best_key = key
+                best = key
                 best_score = score
-        return best_key[0], best_key[1], max(best_score, 0)
+        return best[0], best[1], max(best_score, 0)
 
     def _extract_keywords(self, text: str, dept: str, sub_dept: str) -> List[str]:
         keywords = self.rules[dept]["sub_departments"][sub_dept].get("keywords", [])
@@ -44,7 +43,6 @@ class ComplaintClassificationEngine:
 
     def classify(self, title: str, content: str) -> dict:
         text = self._normalize_text(f"{title} {content}")
-
         scores = self._score_candidates(text)
         dept_name, sub_name, best_score = self._pick_best(scores)
 
