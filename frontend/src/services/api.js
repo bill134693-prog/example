@@ -41,7 +41,16 @@ const normalizeClassificationResponse = (payload, title, content) => {
 };
 
 export const complaintService = {
-  createComplaint: (data) => api.post('/complaints/', data),
+  createComplaint: async (data) => {
+    try {
+      return await api.post('/complaints/', data);
+    } catch (error) {
+      if (error?.response?.status !== 405) throw error;
+    }
+
+    // Fallback for strict-slash/proxy environments.
+    return api.post('/complaints', data);
+  },
   getComplaint: (id) => api.get(`/complaints/${id}`),
   listComplaints: (params = {}) => api.get('/complaints/', { params }),
   updateComplaint: (id, data) => api.put(`/complaints/${id}`, data),

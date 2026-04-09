@@ -4,6 +4,7 @@ import { ComplaintForm } from '../components/ComplaintForm';
 import { DuplicateAlert } from '../components/DuplicateAlert';
 import { Header } from '../components/Header';
 import { classificationService, complaintService, departmentService } from '../services/api';
+import { getLocalRecommendation } from '../services/localRecommendation';
 import './HomePage.css';
 
 const buildRecommendationReason = (basis) => {
@@ -21,6 +22,9 @@ const buildRecommendationReason = (basis) => {
     ? parts.join(' | ')
     : '민원 본문 키워드와 담당 업무 매칭 결과를 기반으로 추천되었습니다.';
 };
+
+const pickNonEmpty = (...values) =>
+  values.find((v) => typeof v === 'string' && v.trim().length > 0) || '';
 
 export const HomePage = () => {
   const navigate = useNavigate();
@@ -52,19 +56,35 @@ export const HomePage = () => {
 
     try {
       const res = await classificationService.analyze(submittedFormData.title, submittedFormData.content);
-      const basis = res.data.classification_basis || {};
+      const local = getLocalRecommendation(submittedFormData.title, submittedFormData.content);
+      const payload = res?.data || {};
+      const basis = payload.classification_basis || local.classification_basis || {};
+
+      const department = pickNonEmpty(
+        payload.department,
+        payload.recommended_department,
+        payload.result?.department,
+        local.department,
+      );
+      const subDepartment = pickNonEmpty(
+        payload.sub_department,
+        payload.recommended_sub_department,
+        payload.result?.sub_department,
+        local.sub_department,
+      );
+      const score = Number(payload.confidence?.overall ?? payload.overall_score ?? local.confidence?.overall ?? 0);
 
       setFormData(submittedFormData);
       setClassification({
-        department: res.data.department,
-        sub_department: res.data.sub_department,
-        score: res.data.confidence?.overall || 0,
+        department,
+        sub_department: subDepartment,
+        score: Number.isFinite(score) ? score : 0,
         reason: buildRecommendationReason(basis),
       });
 
       setMessage({
         type: 'info',
-        text: res.data.fallback_local
+        text: payload.fallback_local
           ? '분석 API 연결이 불안정해 로컬 규칙 기반 추천을 표시했습니다. 추천 정보를 확인한 뒤 접수하세요.'
           : '추천 정보를 확인한 뒤 접수 버튼을 눌러주세요.',
       });

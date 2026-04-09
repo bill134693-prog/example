@@ -47,8 +47,12 @@ def _serialize_complaint_row(complaint: Complaint) -> dict:
     }
 
 
-@bp.route("/", methods=["POST"])
+@bp.route("", methods=["POST", "OPTIONS"])
+@bp.route("/", methods=["POST", "OPTIONS"])
 def create_complaint():
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
+
     data = request.get_json(silent=True) or {}
 
     required_fields = ["citizen_id", "citizen_name", "title", "content"]
