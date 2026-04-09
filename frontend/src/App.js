@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { HomePage } from './pages/HomePage';
+import { BrowserRouter as Router, Link, Route, Routes } from 'react-router-dom';
 import { DashboardPage } from './pages/DashboardPage';
+import { HomePage } from './pages/HomePage';
 import './App.css';
 
 function App() {
@@ -13,26 +13,26 @@ function App() {
         <nav className="app-nav">
           <div className="nav-container">
             <div className="nav-brand">
-              <span className="brand-icon">📋</span>
-              <span className="brand-text">민원분류</span>
+              <span className="brand-icon">민원</span>
+              <span className="brand-text">자동분류</span>
             </div>
             <ul className="nav-links">
               <li>
-                <Link 
-                  to="/" 
+                <Link
+                  to="/"
                   className={`nav-link ${activeNav === 'home' ? 'active' : ''}`}
                   onClick={() => setActiveNav('home')}
                 >
-                  민원 접수
+                  민원인용
                 </Link>
               </li>
               <li>
-                <Link 
-                  to="/dashboard" 
+                <Link
+                  to="/dashboard"
                   className={`nav-link ${activeNav === 'dashboard' ? 'active' : ''}`}
                   onClick={() => setActiveNav('dashboard')}
                 >
-                  대시보드
+                  공무원용
                 </Link>
               </li>
             </ul>
@@ -47,7 +47,7 @@ function App() {
         </main>
 
         <footer className="app-footer">
-          <p>&copy; 2026 민원 자동분류 시스템 | AI 기반 지능형 민원 처리</p>
+          <p>&copy; 2026 민원 자동분류 시스템</p>
         </footer>
       </div>
     </Router>

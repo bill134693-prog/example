@@ -1,7 +1,7 @@
 import React from 'react';
 import './ComplaintForm.css';
 
-export const ComplaintForm = ({ onSubmit, loading }) => {
+export const ComplaintForm = ({ onSubmit, loading, submitLabel = '내용 분석' }) => {
   const [formData, setFormData] = React.useState({
     citizenId: '',
     citizenName: '',
@@ -56,7 +56,7 @@ export const ComplaintForm = ({ onSubmit, loading }) => {
       </div>
 
       <button type="submit" disabled={loading} className="submit-btn">
-        {loading ? '처리중...' : '제출'}
+        {loading ? '처리중...' : submitLabel}
       </button>
     </form>
   );
