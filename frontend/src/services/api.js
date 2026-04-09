@@ -13,6 +13,33 @@ const api = axios.create({
   timeout: 15000,
 });
 
+const normalizeClassificationResponse = (payload, title, content) => {
+  const local = getLocalRecommendation(title, content);
+  const hasDepartment = Boolean(payload?.department);
+  const hasSubDepartment = Boolean(payload?.sub_department);
+  const hasReason = Boolean(payload?.classification_basis?.reason);
+
+  if (!hasDepartment || !hasSubDepartment || !hasReason) {
+    return {
+      ...local,
+      ...payload,
+      department: payload?.department || local.department,
+      sub_department: payload?.sub_department || local.sub_department,
+      confidence: payload?.confidence?.overall
+        ? payload.confidence
+        : local.confidence,
+      classification_basis: {
+        ...local.classification_basis,
+        ...(payload?.classification_basis || {}),
+        reason: payload?.classification_basis?.reason || local.classification_basis.reason,
+      },
+      fallback_local: true,
+    };
+  }
+
+  return payload;
+};
+
 export const complaintService = {
   createComplaint: (data) => api.post('/complaints/', data),
   getComplaint: (id) => api.get(`/complaints/${id}`),
@@ -32,20 +59,23 @@ export const classificationService = {
     // Fallback chain for environments that can return 405
     // due to path/method handling differences.
     try {
-      return await api.post('/classification/analyze', { title, content });
+      const res = await api.post('/classification/analyze', { title, content });
+      return { ...res, data: normalizeClassificationResponse(res.data, title, content) };
     } catch (error) {
       if (error?.response?.status !== 405) throw error;
     }
 
     try {
-      return await api.post('/classification/analyze/', { title, content });
+      const res = await api.post('/classification/analyze/', { title, content });
+      return { ...res, data: normalizeClassificationResponse(res.data, title, content) };
     } catch (error) {
       if (error?.response?.status !== 405) throw error;
     }
 
     // Last fallback: GET query style
     try {
-      return await api.get('/classification/analyze', { params: { title, content } });
+      const res = await api.get('/classification/analyze', { params: { title, content } });
+      return { ...res, data: normalizeClassificationResponse(res.data, title, content) };
     } catch (error) {
       // Final fallback: local rule-based recommendation.
       // This guarantees 추천 부처/부서 화면 is still renderable.
