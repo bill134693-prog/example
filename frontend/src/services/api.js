@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE = process.env.REACT_APP_API_URL || '/api';
 
 const api = axios.create({
     baseURL: API_BASE,
@@ -10,99 +10,99 @@ const api = axios.create({
 });
 
 export const complaintService = {
-    // 민원 접수
+    // 誘쇱썝 ?묒닔
     createComplaint: (data) => api.post('/complaints/', data),
     
-    // 민원 조회
+    // 誘쇱썝 議고쉶
     getComplaint: (id) => api.get(`/complaints/${id}`),
     
-    // 민원 목록
+    // 誘쇱썝 紐⑸줉
     listComplaints: (params = {}) => {
         return api.get('/complaints/', { params });
     },
     
-    // 민원 상태 업데이트
+    // 誘쇱썝 ?곹깭 ?낅뜲?댄듃
     updateComplaint: (id, data) => api.put(`/complaints/${id}`, data),
     
-    // ===== 공무원 액션 =====
+    // ===== 怨듬Т???≪뀡 =====
     
-    // 민원 답변
+    // 誘쇱썝 ?듬?
     answerComplaint: (id, data) => 
         api.put(`/complaints/${id}/answer`, data),
     
-    // 민원 종결
+    // 誘쇱썝 醫낃껐
     closeComplaint: (id, data) => 
         api.put(`/complaints/${id}/close`, data),
     
-    // 민원 취하
+    // 誘쇱썝 痍⑦븯
     withdrawComplaint: (id, data) => 
         api.put(`/complaints/${id}/withdraw`, data),
     
-    // 민원 이송
+    // 誘쇱썝 ?댁넚
     transferComplaint: (id, data) => 
         api.put(`/complaints/${id}/transfer`, data),
     
-    // 민원 부서 재지정
+    // 誘쇱썝 遺???ъ???
     reassignComplaint: (id, data) => 
         api.put(`/complaints/${id}/reassign`, data),
     
-    // 재지정 제안 조회
+    // ?ъ????쒖븞 議고쉶
     getReassignSuggestions: (id) => 
         api.post(`/complaints/${id}/reassign-suggestions`),
     
-    // 부처별 통계
+    // 遺泥섎퀎 ?듦퀎
     getDepartmentStats: (departmentId) => 
         api.get(`/complaints/stats/${departmentId}`)
 };
 
 export const classificationService = {
-    // 민원 분류
+    // 誘쇱썝 遺꾨쪟
     analyze: (title, content) => 
         api.post('/classification/analyze', { title, content }),
     
-    // 배치 분류
+    // 諛곗튂 遺꾨쪟
     batchClassify: (complaints) =>
         api.post('/classification/batch', { complaints })
 };
 
 export const duplicateService = {
-    // 중복 검사
+    // 以묐났 寃??
     checkDuplicate: (citizenId, title, content) =>
         api.post('/duplicates/check', { citizen_id: citizenId, title, content }),
     
-    // 반복민원 알림 목록
+    // 諛섎났誘쇱썝 ?뚮┝ 紐⑸줉
     listAlerts: (page = 1, perPage = 10, reviewed = null) => {
         const params = { page, per_page: perPage };
         if (reviewed !== null) params.reviewed = reviewed;
         return api.get('/duplicates/alerts', { params });
     },
     
-    // 반복민원 알림 검토 완료
+    // 諛섎났誘쇱썝 ?뚮┝ 寃???꾨즺
     markAlertReviewed: (alertId) =>
         api.put(`/duplicates/alerts/${alertId}`),
     
-    // 중복 통계
+    // 以묐났 ?듦퀎
     getStats: () => api.get('/duplicates/stats')
 };
 
 export const departmentService = {
-    // 부처 목록
+    // 遺泥?紐⑸줉
     listDepartments: () => api.get('/departments/'),
     
-    // 부처 생성
+    // 遺泥??앹꽦
     createDepartment: (data) => api.post('/departments/', data),
     
-    // 부서 목록
+    // 遺??紐⑸줉
     listSubDepartments: (departmentId = null) => {
         const params = {};
         if (departmentId) params.department_id = departmentId;
         return api.get('/departments/sub-departments', { params });
     },
     
-    // 부서 생성
+    // 遺???앹꽦
     createSubDepartment: (data) => api.post('/departments/sub-departments', data),
     
-    // 샘플 데이터 초기화
+    // ?섑뵆 ?곗씠??珥덇린??
     initSampleData: () => api.post('/departments/init-sample-data')
 };
 
