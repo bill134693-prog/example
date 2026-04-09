@@ -210,9 +210,27 @@ class ComplaintClassificationEngine:
         }
 
     def generate_content_summary(self, title: str, content: str, dept: str = None, sub_dept: str = None) -> str:
-        sentences = [s.strip() for s in re.split(r"[.!?\n]", content or "") if s.strip()]
-        first = sentences[0] if sentences else (content or "")[:120]
-        summary = f"[{title}] {first}".strip()
+        text = re.sub(r"\s+", " ", content or "").strip()
+        if not text:
+            return f"[{title}] 내용 없음"
+
+        # 규칙 기반 요약: 첫 문장 1~2개 + 핵심 요청 표현 우선 반영
+        segments = [s.strip() for s in re.split(r"[.!?\n]|다\.", text) if s.strip()]
+        core = " / ".join(segments[:2]) if segments else text[:180]
+
+        # 자주 쓰이는 요청 표현이 뒤쪽에 있어도 포함되도록 보강
+        request_markers = ["요청", "처리", "검토", "확인", "조치", "단속", "회신", "답변"]
+        tail_hint = ""
+        for marker in request_markers:
+            idx = text.find(marker)
+            if idx >= 0 and idx > 40:
+                tail_hint = text[max(0, idx - 20) : min(len(text), idx + 40)].strip()
+                break
+
+        summary = f"[{title}] {core}".strip()
+        if tail_hint and tail_hint not in summary:
+            summary = f"{summary} / {tail_hint}"
+
         if len(summary) > 300:
             summary = summary[:297] + "..."
         return summary

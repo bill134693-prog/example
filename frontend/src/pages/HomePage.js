@@ -28,6 +28,15 @@ const buildRecommendationReason = (basis) => {
 const pickNonEmpty = (...values) =>
   values.find((v) => typeof v === 'string' && v.trim().length > 0) || '';
 
+const buildLocalSummary = (title, content) => {
+  const text = String(content || '').replace(/\s+/g, ' ').trim();
+  if (!text) return `[${title}] 내용 없음`;
+  const parts = text.split(/[.!?\n]|다\./).map((s) => s.trim()).filter(Boolean);
+  const core = parts.slice(0, 2).join(' / ') || text.slice(0, 160);
+  const summary = `[${title}] ${core}`.trim();
+  return summary.length > 220 ? `${summary.slice(0, 217)}...` : summary;
+};
+
 export const HomePage = () => {
   const navigate = useNavigate();
 
@@ -140,7 +149,7 @@ export const HomePage = () => {
               citizen_name: formData.citizenName,
               title: formData.title,
               content: formData.content,
-              content_summary: formData.content?.slice(0, 200) || '',
+              content_summary: buildLocalSummary(formData.title, formData.content),
               status: '접수',
               department: classification?.department || null,
               sub_department: classification?.sub_department || null,
