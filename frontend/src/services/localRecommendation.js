@@ -71,6 +71,19 @@ export const LEGAL_RULES = {
       },
     },
   },
+  '식품의약품안전처': {
+    legalReference: '식품의약품안전처와 그 소속기관 직제 시행규칙',
+    subDepartments: {
+      '식품관리총괄과': {
+        keywords: ['식중독', '유통기한', '식품위생', '이물질', '불량식품', '위생점검'],
+        reason: '식품안전 및 식품위생 정책·관리 소관',
+      },
+      '의약품안전평가과': {
+        keywords: ['의약품 부작용', '약 부작용', '허가', '안전성', '약물', '의약품'],
+        reason: '의약품 안전성 평가 및 위해관리 소관',
+      },
+    },
+  },
   '환경부': {
     legalReference: '환경부와 그 소속기관 직제 시행규칙',
     subDepartments: {
@@ -110,6 +123,31 @@ export const LEGAL_RULES = {
       },
     },
   },
+  '지방자치단체': {
+    legalReference: '지방자치단체 행정기구 설치 조례 및 시행규칙',
+    subDepartments: {
+      '민원여권과': {
+        keywords: ['주민등록', '등본', '초본', '인감', '여권', '민원실', '전입신고', '가족관계증명'],
+        reason: '지자체 민원행정·여권 업무 소관',
+      },
+      '도시정비과': {
+        keywords: ['재개발', '재건축', '도시계획', '불법건축물', '노점', '가로정비'],
+        reason: '지자체 도시정비·도시계획 소관',
+      },
+      '복지정책과': {
+        keywords: ['기초생활', '복지급여', '한부모', '긴급복지', '복지상담'],
+        reason: '지자체 생활복지·급여 지원 소관',
+      },
+      '환경관리과': {
+        keywords: ['생활쓰레기', '불법투기', '분리수거', '소음', '악취', '청소행정'],
+        reason: '생활환경 관리 및 생활민원 처리 소관',
+      },
+      '교통행정과': {
+        keywords: ['불법주정차', '주차단속', '버스정류장', '마을버스', '교통민원', '주차구역'],
+        reason: '생활교통 행정 및 교통민원 처리 소관',
+      },
+    },
+  },
 };
 
 const DEFAULT_RESULT = {
@@ -123,6 +161,52 @@ const DEFAULT_RESULT = {
 
 function normalize(text) {
   return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function hasAny(text, keywords) {
+  return keywords.some((kw) => text.includes(kw));
+}
+
+function intentBoost(department, subDepartment, text) {
+  let score = 0;
+
+  if (department === '고용노동부' && subDepartment === '퇴직연금복지과') {
+    if (hasAny(text, ['퇴직금', '퇴직연금', '퇴직급여'])) score += 4;
+    if (hasAny(text, ['요건', '조건', '자격', '받을 수', '가능', '해당'])) score += 3;
+    if (hasAny(text, ['1년', '12개월', '365일', '360일', '계속근로', '근속'])) score += 3;
+    if (hasAny(text, ['주 15시간', '소정근로시간'])) score += 2;
+  }
+
+  if (department === '고용노동부' && subDepartment === '근로감독기획과') {
+    if (hasAny(text, ['임금', '체불', '야근수당', '연장수당', '최저임금'])) score += 4;
+    if (hasAny(text, ['근로계약서', '해고', '부당해고', '직장내괴롭힘'])) score += 3;
+  }
+
+  if (department === '고용노동부' && subDepartment === '고객상담센터 인터넷상담과') {
+    if (hasAny(text, ['문의', '상담', '질문', '알려주세요', '답변'])) score += 3;
+    if (hasAny(text, ['온라인', '인터넷', '홈페이지'])) score += 2;
+  }
+
+  if (department === '보건복지부' && subDepartment === '의료정책과') {
+    if (hasAny(text, ['병원', '진료거부', '진료', '응급실', '의료비', '약국'])) score += 3;
+  }
+
+  if (department === '환경부' && ['대기환경과', '수질정책과'].includes(subDepartment)) {
+    if (hasAny(text, ['악취', '미세먼지', '매연', '폐수', '하천오염', '방류'])) score += 3;
+  }
+
+  if (department === '국토교통부' && ['도로과', '교통안전과'].includes(subDepartment)) {
+    if (hasAny(text, ['포트홀', '도로파손', '신호체계', '횡단보도', '교통사고'])) score += 3;
+  }
+
+  if (department === '지방자치단체') {
+    if (hasAny(text, ['시청', '구청', '군청', '주민센터', '동사무소', '우리 동네', '우리동네'])) score += 4;
+    if (subDepartment === '민원여권과' && hasAny(text, ['등본', '초본', '전입신고', '인감', '가족관계증명'])) score += 3;
+    if (subDepartment === '교통행정과' && hasAny(text, ['불법주정차', '주차단속', '마을버스'])) score += 3;
+    if (subDepartment === '환경관리과' && hasAny(text, ['생활쓰레기', '불법투기', '분리수거'])) score += 3;
+  }
+
+  return score;
 }
 
 export function getLocalRecommendation(title, content) {
@@ -141,19 +225,7 @@ export function getLocalRecommendation(title, content) {
     Object.entries(deptMeta.subDepartments).forEach(([subDepartment, subMeta]) => {
       const matched = (subMeta.keywords || []).filter((kw) => text.includes(String(kw).toLowerCase()));
       let score = matched.length * 2;
-
-      // Intent-style weighted scoring for natural-language labor questions.
-      if (department === '고용노동부' && subDepartment === '퇴직연금복지과') {
-        if (['퇴직금', '퇴직연금', '퇴직급여'].some((kw) => text.includes(kw))) score += 4;
-        if (['요건', '조건', '자격', '받을 수', '가능', '해당'].some((kw) => text.includes(kw))) score += 3;
-        if (['1년', '12개월', '365일', '360일', '계속근로', '근속'].some((kw) => text.includes(kw))) score += 3;
-        if (['주 15시간', '소정근로시간'].some((kw) => text.includes(kw))) score += 2;
-      }
-
-      if (department === '고용노동부' && subDepartment === '고객상담센터 인터넷상담과') {
-        if (['문의', '상담', '질문', '알려주세요', '답변'].some((kw) => text.includes(kw))) score += 3;
-        if (['온라인', '인터넷', '홈페이지'].some((kw) => text.includes(kw))) score += 2;
-      }
+      score += intentBoost(department, subDepartment, text);
 
       if (score > best.scoreCount) {
         best = {
