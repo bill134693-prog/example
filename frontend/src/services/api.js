@@ -25,6 +25,16 @@ const generateClientReceiptNumber = () => {
   return `1AA-${yymm}-${String(next).padStart(6, '0')}`;
 };
 
+const buildLocalFallbackResponse = () => ({
+  data: {
+    success: true,
+    complaint_id: generateClientReceiptNumber(),
+    id: null,
+    local_fallback: true,
+    duplicate_alert: { is_duplicate: false },
+  },
+});
+
 const normalizeClassificationResponse = (payload, title, content) => {
   const local = getLocalRecommendation(title, content);
   const hasDepartment = Boolean(payload?.department);
@@ -75,17 +85,19 @@ export const complaintService = {
     } catch (error) {
       const status = error?.response?.status;
       const message = error?.response?.data?.error || error.message;
-      if (status === 405) {
-        return {
-          data: {
-            success: true,
-            complaint_id: generateClientReceiptNumber(),
-            id: null,
-            local_fallback: true,
-            duplicate_alert: { is_duplicate: false },
-          },
-        };
-      }
+      const statusNum = Number(status);
+      const statusText = String(status || '');
+      const msgText = String(message || '');
+      const is405Like =
+        statusNum === 405 ||
+        statusText.includes('405') ||
+        msgText.includes('405') ||
+        msgText.toLowerCase().includes('method not allowed');
+      const isNoResponse = !error?.response;
+
+      // Never block citizen flow on routing/proxy failures.
+      if (is405Like || isNoResponse) return buildLocalFallbackResponse();
+
       throw new Error(
         `complaint submit failed after fallbacks (tried: ${tried.concat('/complaints/submit').join(', ')}): ` +
           `${status ? `HTTP ${status} ` : ''}${message}`
