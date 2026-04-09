@@ -4,7 +4,11 @@ import { ComplaintForm } from '../components/ComplaintForm';
 import { DuplicateAlert } from '../components/DuplicateAlert';
 import { Header } from '../components/Header';
 import { classificationService, complaintService, departmentService } from '../services/api';
-import { getLocalRecommendation, summarizeComplaintContent } from '../services/localRecommendation';
+import {
+  getLocalRecommendation,
+  summarizeComplaintContent,
+  estimateComplaintDueBusinessDays,
+} from '../services/localRecommendation';
 import './HomePage.css';
 
 const LOCAL_FALLBACK_COMPLAINTS_KEY = 'local_fallback_complaints';
@@ -179,7 +183,7 @@ export const HomePage = () => {
               repeat_count: 0,
               received_date: new Date().toISOString(),
               created_at: new Date().toISOString(),
-              remaining_days: 60,
+              remaining_days: estimateComplaintDueBusinessDays(formData.title, formData.content).days,
               local_fallback: true,
             };
             const deduped = [newItem, ...items.filter((x) => x.complaint_id !== newItem.complaint_id)];

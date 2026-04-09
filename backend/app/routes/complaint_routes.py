@@ -17,6 +17,11 @@ from app.models import (
     SubDepartment,
 )
 
+try:
+    import holidays as pyholidays
+except Exception:  # pragma: no cover - optional at runtime
+    pyholidays = None
+
 bp = Blueprint("complaints", __name__, url_prefix="/api/complaints")
 
 
@@ -32,6 +37,47 @@ def generate_receipt_number() -> str:
     monthly_count = Complaint.query.filter(Complaint.complaint_id.like(f"{prefix}%")).count()
     sequence = monthly_count + 1
     return f"{prefix}{sequence:06d}"
+
+
+def _detect_processing_deadline(title: str, content: str) -> tuple[int, str]:
+    text = f"{title or ''} {content or ''}".lower()
+    proactive_keywords = ["적극행정", "적극 행정", "규제개혁신문고", "국민신청"]
+    law_query_keywords = ["법령", "법률", "시행령", "시행규칙", "조문", "해석", "적용", "근거법"]
+    suggestion_keywords = ["건의", "제안", "개선의견", "개선 요청", "개선요청"]
+    grievance_keywords = ["고충", "불편", "피해", "억울", "부당"]
+    general_query_keywords = ["문의", "질의", "확인", "알려", "가능한지", "어떻게"]
+
+    if any(k in text for k in proactive_keywords):
+        return 60, "적극행정 민원"
+    if any(k in text for k in law_query_keywords) or any(k in text for k in suggestion_keywords):
+        return 14, "법령질의/건의민원"
+    if any(k in text for k in general_query_keywords) or any(k in text for k in grievance_keywords):
+        return 7, "일반질의/고충민원"
+    return 7, "일반 민원"
+
+
+def _add_working_days(start_kst: datetime, days: int) -> datetime:
+    if days <= 0:
+        return start_kst
+
+    holiday_set = set()
+    if pyholidays:
+        years = {start_kst.year, start_kst.year + 1}
+        try:
+            holiday_set = set(pyholidays.KR(years=years).keys())
+        except Exception:
+            holiday_set = set()
+
+    current = start_kst
+    remaining = days
+    while remaining > 0:
+        current = current + timedelta(days=1)
+        if current.weekday() >= 5:  # Sat/Sun
+            continue
+        if current.date() in holiday_set:
+            continue
+        remaining -= 1
+    return current
 
 
 def _serialize_complaint_row(complaint: Complaint) -> dict:
@@ -71,6 +117,12 @@ def create_complaint():
         return jsonify({"error": f"?꾩닔 ?꾨뱶 ?꾨씫: {', '.join(missing)}"}), 400
 
     try:
+        now_utc = datetime.utcnow()
+        now_kst = now_utc + timedelta(hours=9)
+        deadline_days, deadline_type = _detect_processing_deadline(data["title"], data["content"])
+        due_kst = _add_working_days(now_kst, deadline_days)
+        due_utc = due_kst - timedelta(hours=9)
+
         complaint = Complaint(
             complaint_id=generate_receipt_number(),
             citizen_id=hash_citizen_id(data["citizen_id"]),
@@ -80,8 +132,8 @@ def create_complaint():
             title=data["title"],
             content=data["content"],
             status=ComplaintStatus.RECEIVED.value,
-            received_date=datetime.utcnow(),
-            due_date=datetime.utcnow() + timedelta(days=60),
+            received_date=now_utc,
+            due_date=due_utc,
         )
 
         db.session.add(complaint)
@@ -210,6 +262,11 @@ def create_complaint():
                         "department": classification_result["department"],
                         "sub_department": classification_result["sub_department"],
                         "score": classification_result["overall_score"],
+                    },
+                    "deadline": {
+                        "type": deadline_type,
+                        "business_days": deadline_days,
+                        "due_date": complaint.due_date.isoformat() if complaint.due_date else None,
                     },
                     "duplicate_alert": {
                         "is_duplicate": duplicate_result["is_duplicate"],

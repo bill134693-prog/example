@@ -179,6 +179,24 @@ export function summarizeComplaintContent(title, content) {
   return summary.length > 220 ? `${summary.slice(0, 217)}...` : summary;
 }
 
+export function estimateComplaintDueBusinessDays(title, content) {
+  const text = `${title || ''} ${content || ''}`.toLowerCase();
+  const proactive = ['적극행정', '적극 행정', '규제개혁신문고', '국민신청'];
+  const lawQuery = ['법령', '법률', '시행령', '시행규칙', '조문', '해석', '적용', '근거법'];
+  const suggestion = ['건의', '제안', '개선의견', '개선 요청', '개선요청'];
+  const grievance = ['고충', '불편', '피해', '억울', '부당'];
+  const general = ['문의', '질의', '확인', '알려', '가능한지', '어떻게'];
+
+  if (proactive.some((k) => text.includes(k))) return { days: 60, type: '적극행정 민원' };
+  if (lawQuery.some((k) => text.includes(k)) || suggestion.some((k) => text.includes(k))) {
+    return { days: 14, type: '법령질의/건의민원' };
+  }
+  if (general.some((k) => text.includes(k)) || grievance.some((k) => text.includes(k))) {
+    return { days: 7, type: '일반질의/고충민원' };
+  }
+  return { days: 7, type: '일반 민원' };
+}
+
 function hasAny(text, keywords) {
   return keywords.some((kw) => text.includes(kw));
 }
