@@ -38,7 +38,8 @@ def analyze_complaint():
         return jsonify({"error": "title and content are required."}), 400
 
     try:
-        result = classification_engine.classify(title, content)
+        recommendations = classification_engine.classify_top_n(title, content, limit=3)
+        result = recommendations[0]
         department = result.get("department") or DEFAULT_RECOMMENDATION["department"]
         sub_department = result.get("sub_department") or DEFAULT_RECOMMENDATION["sub_department"]
         dept_score = float(result.get("department_score") or DEFAULT_RECOMMENDATION["department_score"])
@@ -58,6 +59,7 @@ def analyze_complaint():
                         "overall": overall_score,
                     },
                     "classification_basis": basis,
+                    "recommendations": recommendations,
                 }
             ),
             200,
@@ -79,6 +81,7 @@ def analyze_complaint():
                         **DEFAULT_RECOMMENDATION["classification_basis"],
                         "reason": f"{DEFAULT_RECOMMENDATION['classification_basis']['reason']} / fallback: {e}",
                     },
+                    "recommendations": [DEFAULT_RECOMMENDATION],
                 }
             ),
             200,

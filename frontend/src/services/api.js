@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getLocalRecommendation } from './localRecommendation';
+import { getLocalRecommendation, getLocalRecommendations } from './localRecommendation';
 
 const API_BASE =
   process.env.REACT_APP_API_URL ||
@@ -37,9 +37,26 @@ const buildLocalFallbackResponse = () => ({
 
 const normalizeClassificationResponse = (payload, title, content) => {
   const local = getLocalRecommendation(title, content);
+  const localTop = getLocalRecommendations(title, content, 3);
   const hasDepartment = Boolean(payload?.department);
   const hasSubDepartment = Boolean(payload?.sub_department);
   const hasReason = Boolean(payload?.classification_basis?.reason);
+  const serverRecs = Array.isArray(payload?.recommendations) ? payload.recommendations : [];
+  const normalizedRecommendations = (serverRecs.length > 0 ? serverRecs : localTop).map((r) => ({
+    department: r.department,
+    sub_department: r.sub_department,
+    confidence: r.confidence || {
+      department: r.department_score || 0,
+      sub_department: r.sub_department_score || 0,
+      overall: r.overall_score || 0,
+    },
+    classification_basis: r.classification_basis || {
+      reason: '',
+      legal_basis: '',
+      policy_basis: '',
+      keywords: [],
+    },
+  }));
 
   if (!hasDepartment || !hasSubDepartment || !hasReason) {
     return {
@@ -55,11 +72,31 @@ const normalizeClassificationResponse = (payload, title, content) => {
         ...(payload?.classification_basis || {}),
         reason: payload?.classification_basis?.reason || local.classification_basis.reason,
       },
+      recommendations: normalizedRecommendations,
       fallback_local: true,
     };
   }
 
-  return payload;
+  return { ...payload, recommendations: normalizedRecommendations };
+};
+
+const actionRequestWithFallback = async (path, data) => {
+  const attempts = [
+    () => api.put(path, data),
+    () => api.put(`${path}/`, data),
+    () => api.post(path, data),
+    () => api.post(`${path}/`, data),
+  ];
+  let lastError = null;
+  for (const run of attempts) {
+    try {
+      return await run();
+    } catch (error) {
+      lastError = error;
+      if (Number(error?.response?.status) !== 405) throw error;
+    }
+  }
+  throw lastError || new Error('action request failed');
 };
 
 export const complaintService = {
@@ -106,14 +143,18 @@ export const complaintService = {
   },
   getComplaint: (id) => api.get(`/complaints/${id}`),
   listComplaints: (params = {}) => api.get('/complaints/', { params }),
-  updateComplaint: (id, data) => api.put(`/complaints/${id}`, data),
-  answerComplaint: (id, data) => api.put(`/complaints/${id}/answer`, data),
+  updateComplaint: (id, data) => actionRequestWithFallback(`/complaints/${id}`, data),
+  answerComplaint: (id, data) => actionRequestWithFallback(`/complaints/${id}/answer`, data),
   getAiAnswerSuggestion: (id) => api.get(`/complaints/${id}/ai-answer-suggestion`),
-  closeComplaint: (id, data) => api.put(`/complaints/${id}/close`, data),
-  withdrawComplaint: (id, data) => api.put(`/complaints/${id}/withdraw`, data),
-  transferComplaint: (id, data) => api.put(`/complaints/${id}/transfer`, data),
-  reassignComplaint: (id, data) => api.put(`/complaints/${id}/reassign`, data),
-  getReassignSuggestions: (id) => api.post(`/complaints/${id}/reassign-suggestions`),
+  closeComplaint: (id, data) => actionRequestWithFallback(`/complaints/${id}/close`, data),
+  withdrawComplaint: (id, data) => actionRequestWithFallback(`/complaints/${id}/withdraw`, data),
+  transferComplaint: (id, data) => actionRequestWithFallback(`/complaints/${id}/transfer`, data),
+  reassignComplaint: (id, data) => actionRequestWithFallback(`/complaints/${id}/reassign`, data),
+  getReassignSuggestions: (id) =>
+    api.post(`/complaints/${id}/reassign-suggestions`).catch((error) => {
+      if (Number(error?.response?.status) !== 405) throw error;
+      return api.get(`/complaints/${id}/reassign-suggestions`);
+    }),
   getDepartmentStats: (departmentId) => api.get(`/complaints/stats/${departmentId}`),
 };
 

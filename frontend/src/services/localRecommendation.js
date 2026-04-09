@@ -163,6 +163,21 @@ function normalize(text) {
   return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+export function summarizeComplaintContent(title, content) {
+  const text = String(content || '').replace(/\s+/g, ' ').trim();
+  if (!text) return `[${title}] 내용 없음`;
+  const parts = text.split(/[.!?\n]|다\./).map((s) => s.trim()).filter(Boolean);
+  const issue = parts[0] || text.slice(0, 90);
+  const marker = ['요청', '처리', '검토', '확인', '조치', '바랍니다', '해주세요'].find((m) => text.includes(m));
+  let request = '';
+  if (marker) {
+    const idx = text.indexOf(marker);
+    request = text.slice(Math.max(0, idx - 20), Math.min(text.length, idx + 36)).trim();
+  }
+  const summary = request ? `[${title}] 핵심: ${issue} / 요청: ${request}` : `[${title}] 핵심: ${issue}`;
+  return summary.length > 220 ? `${summary.slice(0, 217)}...` : summary;
+}
+
 function hasAny(text, keywords) {
   return keywords.some((kw) => text.includes(kw));
 }
@@ -266,9 +281,32 @@ function intentBoost(department, subDepartment, text) {
 }
 
 export function getLocalRecommendation(title, content) {
+  const recs = getLocalRecommendations(title, content, 1);
+  return recs[0];
+}
+
+export function getLocalRecommendations(title, content, limit = 3) {
   const text = normalize(`${title} ${content}`);
 
-  let best = {
+  const candidates = [];
+
+  Object.entries(LEGAL_RULES).forEach(([department, deptMeta]) => {
+    Object.entries(deptMeta.subDepartments).forEach(([subDepartment, subMeta]) => {
+      const matched = (subMeta.keywords || []).filter((kw) => text.includes(String(kw).toLowerCase()));
+      let score = matched.length * 2;
+      score += intentBoost(department, subDepartment, text);
+      candidates.push({
+        department,
+        sub_department: subDepartment,
+        scoreCount: score,
+        matchedKeywords: matched,
+        reason: subMeta.reason,
+        legal_basis: deptMeta.legalReference,
+      });
+    });
+  });
+  candidates.sort((a, b) => b.scoreCount - a.scoreCount);
+  const best = candidates[0] || {
     department: DEFAULT_RESULT.department,
     sub_department: DEFAULT_RESULT.sub_department,
     scoreCount: 0,
@@ -276,48 +314,30 @@ export function getLocalRecommendation(title, content) {
     reason: DEFAULT_RESULT.reason,
     legal_basis: DEFAULT_RESULT.legal_basis,
   };
-
-  Object.entries(LEGAL_RULES).forEach(([department, deptMeta]) => {
-    Object.entries(deptMeta.subDepartments).forEach(([subDepartment, subMeta]) => {
-      const matched = (subMeta.keywords || []).filter((kw) => text.includes(String(kw).toLowerCase()));
-      let score = matched.length * 2;
-      score += intentBoost(department, subDepartment, text);
-
-      if (score > best.scoreCount) {
-        best = {
-          department,
-          sub_department: subDepartment,
-          scoreCount: score,
-          matchedKeywords: matched,
-          reason: subMeta.reason,
-          legal_basis: deptMeta.legalReference,
-        };
-      }
-    });
-  });
-
-  const base = 0.40;
-  const confidence = Math.min(0.95, base + best.scoreCount * 0.05);
   const nonActionable = checkNonActionable(text, best.scoreCount);
   if (nonActionable.nonActionable) {
-    return buildNonActionableRecommendation(nonActionable.reason, nonActionable.keywords);
+    return [buildNonActionableRecommendation(nonActionable.reason, nonActionable.keywords)];
   }
 
-  return {
-    success: true,
-    department: best.department,
-    sub_department: best.sub_department,
-    confidence: {
-      department: confidence,
-      sub_department: confidence,
-      overall: confidence,
-    },
-    classification_basis: {
-      keywords: best.matchedKeywords,
-      legal_basis: best.legal_basis,
-      policy_basis: best.reason,
-      reason: `${best.legal_basis} 기준으로 키워드 매칭 결과를 반영했습니다.`,
-    },
-    fallback_local: true,
-  };
+  return candidates.slice(0, Math.max(1, limit)).map((item) => {
+    const base = 0.40;
+    const confidence = Math.min(0.95, base + item.scoreCount * 0.05);
+    return {
+      success: true,
+      department: item.department,
+      sub_department: item.sub_department,
+      confidence: {
+        department: confidence,
+        sub_department: confidence,
+        overall: confidence,
+      },
+      classification_basis: {
+        keywords: item.matchedKeywords,
+        legal_basis: item.legal_basis,
+        policy_basis: item.reason,
+        reason: `${item.legal_basis} 기준으로 키워드 매칭 결과를 반영했습니다.`,
+      },
+      fallback_local: true,
+    };
+  });
 }

@@ -88,6 +88,23 @@ def create_complaint():
         db.session.flush()
 
         classification_result = classification_engine.classify(complaint.title, complaint.content)
+        preferred_department = (data.get("preferred_department") or "").strip()
+        preferred_sub_department = (data.get("preferred_sub_department") or "").strip()
+        preferred_reason = (data.get("preferred_reason") or "").strip()
+        preferred_confidence = data.get("preferred_confidence")
+        if preferred_department and preferred_sub_department:
+            classification_result = {
+                **classification_result,
+                "department": preferred_department,
+                "sub_department": preferred_sub_department,
+                "overall_score": float(preferred_confidence) if preferred_confidence is not None else classification_result["overall_score"],
+                "department_score": float(preferred_confidence) if preferred_confidence is not None else classification_result["department_score"],
+                "sub_department_score": float(preferred_confidence) if preferred_confidence is not None else classification_result["sub_department_score"],
+                "classification_basis": {
+                    **classification_result.get("classification_basis", {}),
+                    "reason": preferred_reason or classification_result.get("classification_basis", {}).get("reason", ""),
+                },
+            }
         complaint.content_summary = classification_engine.generate_content_summary(
             complaint.title,
             complaint.content,
@@ -335,8 +352,11 @@ def _add_processing_history(complaint: Complaint, action_type: str, action_by: s
     )
 
 
-@bp.route("/<int:complaint_id>/answer", methods=["PUT"])
+@bp.route("/<int:complaint_id>/answer", methods=["PUT", "POST", "OPTIONS"])
+@bp.route("/<int:complaint_id>/answer/", methods=["PUT", "POST", "OPTIONS"])
 def answer_complaint(complaint_id: int):
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
         return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
@@ -373,8 +393,11 @@ def get_ai_answer_suggestion(complaint_id: int):
     return jsonify({"success": True, **suggestion}), 200
 
 
-@bp.route("/<int:complaint_id>/close", methods=["PUT"])
+@bp.route("/<int:complaint_id>/close", methods=["PUT", "POST", "OPTIONS"])
+@bp.route("/<int:complaint_id>/close/", methods=["PUT", "POST", "OPTIONS"])
 def close_complaint(complaint_id: int):
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
         return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
@@ -397,8 +420,11 @@ def close_complaint(complaint_id: int):
     return jsonify({"success": True, "status": complaint.status}), 200
 
 
-@bp.route("/<int:complaint_id>/withdraw", methods=["PUT"])
+@bp.route("/<int:complaint_id>/withdraw", methods=["PUT", "POST", "OPTIONS"])
+@bp.route("/<int:complaint_id>/withdraw/", methods=["PUT", "POST", "OPTIONS"])
 def withdraw_complaint(complaint_id: int):
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
         return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
@@ -421,8 +447,11 @@ def withdraw_complaint(complaint_id: int):
     return jsonify({"success": True, "status": complaint.status}), 200
 
 
-@bp.route("/<int:complaint_id>/transfer", methods=["PUT"])
+@bp.route("/<int:complaint_id>/transfer", methods=["PUT", "POST", "OPTIONS"])
+@bp.route("/<int:complaint_id>/transfer/", methods=["PUT", "POST", "OPTIONS"])
 def transfer_complaint(complaint_id: int):
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
         return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
@@ -445,8 +474,11 @@ def transfer_complaint(complaint_id: int):
     return jsonify({"success": True, "status": complaint.status, "transferred_to": data["target_department"]}), 200
 
 
-@bp.route("/<int:complaint_id>/reassign", methods=["PUT"])
+@bp.route("/<int:complaint_id>/reassign", methods=["PUT", "POST", "OPTIONS"])
+@bp.route("/<int:complaint_id>/reassign/", methods=["PUT", "POST", "OPTIONS"])
 def reassign_complaint(complaint_id: int):
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
         return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
@@ -487,34 +519,40 @@ def reassign_complaint(complaint_id: int):
     )
 
 
-@bp.route("/<int:complaint_id>/reassign-suggestions", methods=["POST"])
+@bp.route("/<int:complaint_id>/reassign-suggestions", methods=["POST", "GET", "OPTIONS"])
+@bp.route("/<int:complaint_id>/reassign-suggestions/", methods=["POST", "GET", "OPTIONS"])
 def get_reassign_suggestions(complaint_id: int):
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
         return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
 
-    classification_result = classification_engine.classify(complaint.title, complaint.content)
-    suggested_dept = Department.query.filter_by(name=classification_result["department"]).first()
-    suggested_sub = None
-    if suggested_dept:
-        suggested_sub = SubDepartment.query.filter_by(
-            department_id=suggested_dept.id,
-            name=classification_result["sub_department"],
-        ).first()
-
+    classification_results = classification_engine.classify_top_n(complaint.title, complaint.content, limit=3)
     suggestions = []
-    if suggested_dept and suggested_sub:
-        suggestions.append(
-            {
-                "rank": 1,
-                "department_id": suggested_dept.id,
-                "department_name": suggested_dept.name,
-                "sub_department_id": suggested_sub.id,
-                "sub_department_name": suggested_sub.name,
-                "confidence": classification_result["overall_score"],
-                "reason": "誘쇱썝 ?댁슜 湲곕컲 ?먮룞 遺꾨쪟 寃곌낵",
-            }
-        )
+    rank = 1
+    for classification_result in classification_results:
+        suggested_dept = Department.query.filter_by(name=classification_result["department"]).first()
+        suggested_sub = None
+        if suggested_dept:
+            suggested_sub = SubDepartment.query.filter_by(
+                department_id=suggested_dept.id,
+                name=classification_result["sub_department"],
+            ).first()
+
+        if suggested_dept and suggested_sub:
+            suggestions.append(
+                {
+                    "rank": rank,
+                    "department_id": suggested_dept.id,
+                    "department_name": suggested_dept.name,
+                    "sub_department_id": suggested_sub.id,
+                    "sub_department_name": suggested_sub.name,
+                    "confidence": classification_result["overall_score"],
+                    "reason": classification_result.get("classification_basis", {}).get("reason", "민원 내용 기반 자동 분류 결과"),
+                }
+            )
+            rank += 1
 
     all_depts = Department.query.all()
     available_departments = []

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { complaintService } from '../services/api';
-import { getLocalRecommendation, LEGAL_RULES } from '../services/localRecommendation';
+import { getLocalRecommendation, getLocalRecommendations, LEGAL_RULES } from '../services/localRecommendation';
 import './ComplaintDetailModal.css';
 
 export const ComplaintDetailModal = ({ complaint, onClose }) => {
@@ -31,16 +31,14 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
     setLoading(true);
     try {
       if (isLocalFallback) {
-        const localRec = getLocalRecommendation(complaint.title, complaint.content);
-        const suggestions = [
-          {
-            rank: 1,
-            department_name: localRec.department,
-            sub_department_name: localRec.sub_department,
-            confidence: localRec.confidence?.overall || 0.5,
-            reason: localRec.classification_basis?.reason || '로컬 규칙 기반 추천',
-          },
-        ];
+        const localRecs = getLocalRecommendations(complaint.title, complaint.content, 3);
+        const suggestions = localRecs.map((rec, idx) => ({
+          rank: idx + 1,
+          department_name: rec.department,
+          sub_department_name: rec.sub_department,
+          confidence: rec.confidence?.overall || 0.5,
+          reason: rec.classification_basis?.reason || '로컬 규칙 기반 추천',
+        }));
 
         let deptId = 1;
         const available_departments = Object.entries(LEGAL_RULES).map(([deptName, deptMeta]) => {
@@ -268,12 +266,19 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
         {activeAction === 'transfer' && (
           <div className="action-modal">
             <h4>민원 이송</h4>
-            {isLocalFallback && (
-              <div className="suggestion-item">
-                추천 부서: {getLocalRecommendation(complaint.title, complaint.content).department} &gt;{' '}
-                {getLocalRecommendation(complaint.title, complaint.content).sub_department}
-              </div>
-            )}
+            <div className="suggestion-item">
+              {(isLocalFallback
+                ? getLocalRecommendations(complaint.title, complaint.content, 3).map((r, i) => (
+                    <div key={`${r.department}-${r.sub_department}-${i}`}>
+                      {i + 1}순위 추천: {r.department} &gt; {r.sub_department}
+                    </div>
+                  ))
+                : [
+                    <div key="default">
+                      추천: {complaint.department || '-'} &gt; {complaint.sub_department || '-'}
+                    </div>,
+                  ])}
+            </div>
             <input type="text" value={actionData.target_department || ''} onChange={(e) => setActionData({ ...actionData, target_department: e.target.value })} placeholder="이송 대상 부처" />
             <div className="action-buttons">
               <button

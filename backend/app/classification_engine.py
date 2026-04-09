@@ -160,6 +160,38 @@ class ComplaintClassificationEngine:
                 scores[(dept_name, sub_name)] = score
         return scores
 
+    def _build_recommendations(self, text: str, scores: Dict[Tuple[str, str], int], limit: int = 3) -> List[dict]:
+        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        recommendations: List[dict] = []
+        for (dept_name, sub_name), score in ranked[: max(1, limit)]:
+            dept_meta = self.rules[dept_name]
+            sub_meta = dept_meta["sub_departments"][sub_name]
+            matched_keywords = self._extract_keywords(text, dept_name, sub_name)
+            keyword_total = max(len(sub_meta.get("keywords", [])), 1)
+            confidence = min(0.95, 0.40 + (max(score, 0) / keyword_total) * 0.55)
+            reason = (
+                f"{dept_meta.get('legal_reference')} 기준, "
+                f"{sub_name} 소관({sub_meta.get('reason')})과 키워드 매칭 결과"
+            )
+            recommendations.append(
+                {
+                    "department": dept_name,
+                    "sub_department": sub_name,
+                    "department_code": dept_meta.get("code"),
+                    "sub_department_code": sub_meta.get("code"),
+                    "department_score": float(confidence),
+                    "sub_department_score": float(confidence),
+                    "overall_score": float(confidence),
+                    "classification_basis": {
+                        "keywords": matched_keywords,
+                        "legal_basis": dept_meta.get("legal_reference"),
+                        "policy_basis": sub_meta.get("reason"),
+                        "reason": reason,
+                    },
+                }
+            )
+        return recommendations
+
     def _pick_best(self, scores: Dict[Tuple[str, str], int]) -> Tuple[str, str, int]:
         best = (self.default_department, self.default_sub_department)
         best_score = -1
@@ -209,30 +241,38 @@ class ComplaintClassificationEngine:
             },
         }
 
+    def classify_top_n(self, title: str, content: str, limit: int = 3) -> List[dict]:
+        text = self._normalize_text(f"{title} {content}")
+        scores = self._score_candidates(text)
+        _, _, best_score = self._pick_best(scores)
+        is_non_actionable, non_actionable_reason, matched_private = self._check_non_actionable(text, best_score)
+        if is_non_actionable:
+            return [self._build_non_actionable_result(non_actionable_reason, matched_private)]
+        return self._build_recommendations(text, scores, limit=limit)
+
     def generate_content_summary(self, title: str, content: str, dept: str = None, sub_dept: str = None) -> str:
         text = re.sub(r"\s+", " ", content or "").strip()
         if not text:
             return f"[{title}] 내용 없음"
 
-        # 규칙 기반 요약: 첫 문장 1~2개 + 핵심 요청 표현 우선 반영
         segments = [s.strip() for s in re.split(r"[.!?\n]|다\.", text) if s.strip()]
-        core = " / ".join(segments[:2]) if segments else text[:180]
+        issue = segments[0] if segments else text[:90]
 
-        # 자주 쓰이는 요청 표현이 뒤쪽에 있어도 포함되도록 보강
-        request_markers = ["요청", "처리", "검토", "확인", "조치", "단속", "회신", "답변"]
-        tail_hint = ""
+        request_markers = ["요청", "처리", "검토", "확인", "조치", "단속", "회신", "답변", "바랍니다", "해주세요"]
+        request = ""
         for marker in request_markers:
             idx = text.find(marker)
-            if idx >= 0 and idx > 40:
-                tail_hint = text[max(0, idx - 20) : min(len(text), idx + 40)].strip()
+            if idx >= 0:
+                request = text[max(0, idx - 24) : min(len(text), idx + 36)].strip()
                 break
 
-        summary = f"[{title}] {core}".strip()
-        if tail_hint and tail_hint not in summary:
-            summary = f"{summary} / {tail_hint}"
+        if request:
+            summary = f"[{title}] 핵심: {issue} / 요청: {request}"
+        else:
+            summary = f"[{title}] 핵심: {issue}"
 
-        if len(summary) > 300:
-            summary = summary[:297] + "..."
+        if len(summary) > 220:
+            summary = summary[:217] + "..."
         return summary
 
 

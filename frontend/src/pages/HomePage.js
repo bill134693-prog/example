@@ -4,7 +4,7 @@ import { ComplaintForm } from '../components/ComplaintForm';
 import { DuplicateAlert } from '../components/DuplicateAlert';
 import { Header } from '../components/Header';
 import { classificationService, complaintService, departmentService } from '../services/api';
-import { getLocalRecommendation } from '../services/localRecommendation';
+import { getLocalRecommendation, summarizeComplaintContent } from '../services/localRecommendation';
 import './HomePage.css';
 
 const LOCAL_FALLBACK_COMPLAINTS_KEY = 'local_fallback_complaints';
@@ -28,15 +28,6 @@ const buildRecommendationReason = (basis) => {
 const pickNonEmpty = (...values) =>
   values.find((v) => typeof v === 'string' && v.trim().length > 0) || '';
 
-const buildLocalSummary = (title, content) => {
-  const text = String(content || '').replace(/\s+/g, ' ').trim();
-  if (!text) return `[${title}] 내용 없음`;
-  const parts = text.split(/[.!?\n]|다\./).map((s) => s.trim()).filter(Boolean);
-  const core = parts.slice(0, 2).join(' / ') || text.slice(0, 160);
-  const summary = `[${title}] ${core}`.trim();
-  return summary.length > 220 ? `${summary.slice(0, 217)}...` : summary;
-};
-
 export const HomePage = () => {
   const navigate = useNavigate();
 
@@ -47,6 +38,7 @@ export const HomePage = () => {
   const [formData, setFormData] = useState(null);
   const [createdComplaintId, setCreatedComplaintId] = useState(null);
   const [nonActionableNotice, setNonActionableNotice] = useState('');
+  const [selectedRecommendationIndex, setSelectedRecommendationIndex] = useState(0);
 
   useEffect(() => {
     const init = async () => {
@@ -66,6 +58,7 @@ export const HomePage = () => {
     setDuplicateAlert(null);
     setCreatedComplaintId(null);
     setNonActionableNotice('');
+    setSelectedRecommendationIndex(0);
 
     try {
       const res = await classificationService.analyze(submittedFormData.title, submittedFormData.content);
@@ -86,6 +79,16 @@ export const HomePage = () => {
         local.sub_department,
       );
       const score = Number(payload.confidence?.overall ?? payload.overall_score ?? local.confidence?.overall ?? 0);
+      const recommendations = Array.isArray(payload.recommendations) && payload.recommendations.length > 0
+        ? payload.recommendations
+        : [
+            {
+              department,
+              sub_department: subDepartment,
+              confidence: { overall: score },
+              classification_basis: basis,
+            },
+          ];
 
       setFormData(submittedFormData);
       setClassification({
@@ -93,6 +96,13 @@ export const HomePage = () => {
         sub_department: subDepartment,
         score: Number.isFinite(score) ? score : 0,
         reason: buildRecommendationReason(basis),
+        recommendations: recommendations.slice(0, 3).map((r) => ({
+          department: r.department,
+          sub_department: r.sub_department,
+          score: Number(r?.confidence?.overall ?? r?.overall_score ?? 0),
+          reason: buildRecommendationReason(r.classification_basis),
+          basis: r.classification_basis,
+        })),
       });
       if (String(department).startsWith('추천 어려움')) {
         setNonActionableNotice(
@@ -136,6 +146,12 @@ export const HomePage = () => {
         citizen_address: formData.citizenAddress,
         title: formData.title,
         content: formData.content,
+        preferred_department: classification?.recommendations?.[selectedRecommendationIndex]?.department || classification?.department,
+        preferred_sub_department:
+          classification?.recommendations?.[selectedRecommendationIndex]?.sub_department || classification?.sub_department,
+        preferred_reason: classification?.recommendations?.[selectedRecommendationIndex]?.reason || classification?.reason,
+        preferred_confidence:
+          classification?.recommendations?.[selectedRecommendationIndex]?.score ?? classification?.score ?? 0,
       });
 
       if (res.data?.success) {
@@ -149,11 +165,16 @@ export const HomePage = () => {
               citizen_name: formData.citizenName,
               title: formData.title,
               content: formData.content,
-              content_summary: buildLocalSummary(formData.title, formData.content),
-              status: '접수',
-              department: classification?.department || null,
-              sub_department: classification?.sub_department || null,
-              classification_score: classification?.score || 0,
+              content_summary: summarizeComplaintContent(formData.title, formData.content),
+              status: '분류완료',
+              department:
+                classification?.recommendations?.[selectedRecommendationIndex]?.department || classification?.department || null,
+              sub_department:
+                classification?.recommendations?.[selectedRecommendationIndex]?.sub_department ||
+                classification?.sub_department ||
+                null,
+              classification_score:
+                classification?.recommendations?.[selectedRecommendationIndex]?.score ?? classification?.score ?? 0,
               is_duplicate: false,
               repeat_count: 0,
               received_date: new Date().toISOString(),
@@ -211,22 +232,33 @@ export const HomePage = () => {
             <h2>추천 정보 확인</h2>
             <p className="step-description">2. 추천 결과를 확인하고 최종 접수합니다.</p>
             <div className="recommendation-box">
-              <div className="recommendation-item">
-                <label>추천 부처</label>
-                <span className="recommendation-value">{classification.department}</span>
-              </div>
-              <div className="recommendation-item">
-                <label>추천 부서</label>
-                <span className="recommendation-value">{classification.sub_department}</span>
-              </div>
-              <div className="recommendation-item">
-                <label>추천 사유</label>
-                <span className="recommendation-value">{classification.reason}</span>
-              </div>
-              <div className="recommendation-item">
-                <label>신뢰도</label>
-                <span className="recommendation-value">{(classification.score * 100).toFixed(1)}%</span>
-              </div>
+              {(classification.recommendations || []).map((rec, idx) => (
+                <label
+                  key={`${rec.department}-${rec.sub_department}-${idx}`}
+                  className="recommendation-item"
+                  style={{
+                    display: 'block',
+                    border: selectedRecommendationIndex === idx ? '2px solid #2f9e44' : '1px solid #d7e3d9',
+                    borderRadius: 8,
+                    padding: 10,
+                    marginBottom: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="recommendation"
+                    checked={selectedRecommendationIndex === idx}
+                    onChange={() => setSelectedRecommendationIndex(idx)}
+                    style={{ marginRight: 8 }}
+                  />
+                  <strong>{idx + 1}순위</strong> {rec.department} &gt; {rec.sub_department}
+                  <div className="recommendation-value" style={{ marginTop: 6 }}>
+                    추천 사유: {rec.reason}
+                  </div>
+                  <div className="recommendation-value">신뢰도: {(rec.score * 100).toFixed(1)}%</div>
+                </label>
+              ))}
             </div>
 
             {nonActionableNotice && (
