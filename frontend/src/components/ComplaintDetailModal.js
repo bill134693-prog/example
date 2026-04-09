@@ -3,6 +3,7 @@ import { complaintService } from '../services/api';
 import './ComplaintDetailModal.css';
 
 export const ComplaintDetailModal = ({ complaint, onClose }) => {
+  const isLocalFallback = Boolean(complaint?.local_fallback) || String(complaint?.id || '').startsWith('local-');
   const [activeAction, setActiveAction] = useState(null);
   const [actionData, setActionData] = useState({});
   const [loading, setLoading] = useState(false);
@@ -99,12 +100,17 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
 
         {activeAction === null && (
           <div className="modal-footer">
+            {isLocalFallback && (
+              <div className="message message-info" style={{ marginBottom: 10 }}>
+                이 건은 임시 접수 건으로 서버 동기화 전입니다. 상세 처리 액션은 동기화 후 가능합니다.
+              </div>
+            )}
             <div className="action-buttons">
-              <button className="action-btn answer-btn" onClick={handleAnswerClick}>답변</button>
-              <button className="action-btn close-btn-action" onClick={() => executeAction(complaintService.closeComplaint, { handler_id: 'admin' }, '종결 처리 완료')}>종결</button>
-              <button className="action-btn withdraw-btn" onClick={() => executeAction(complaintService.withdrawComplaint, { handler_id: 'admin' }, '취하 처리 완료')}>취하</button>
-              <button className="action-btn transfer-btn" onClick={() => setActiveAction('transfer')}>이송</button>
-              <button className="action-btn reassign-btn" onClick={handleReassignClick}>재지정</button>
+              <button className="action-btn answer-btn" onClick={handleAnswerClick} disabled={isLocalFallback}>답변</button>
+              <button className="action-btn close-btn-action" onClick={() => executeAction(complaintService.closeComplaint, { handler_id: 'admin' }, '종결 처리 완료')} disabled={isLocalFallback}>종결</button>
+              <button className="action-btn withdraw-btn" onClick={() => executeAction(complaintService.withdrawComplaint, { handler_id: 'admin' }, '취하 처리 완료')} disabled={isLocalFallback}>취하</button>
+              <button className="action-btn transfer-btn" onClick={() => setActiveAction('transfer')} disabled={isLocalFallback}>이송</button>
+              <button className="action-btn reassign-btn" onClick={handleReassignClick} disabled={isLocalFallback}>재지정</button>
             </div>
           </div>
         )}

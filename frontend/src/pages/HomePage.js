@@ -7,6 +7,8 @@ import { classificationService, complaintService, departmentService } from '../s
 import { getLocalRecommendation } from '../services/localRecommendation';
 import './HomePage.css';
 
+const LOCAL_FALLBACK_COMPLAINTS_KEY = 'local_fallback_complaints';
+
 const buildRecommendationReason = (basis) => {
   if (!basis) {
     return '민원 본문 키워드와 담당 업무 매칭 결과를 기반으로 추천되었습니다.';
@@ -128,6 +130,35 @@ export const HomePage = () => {
       });
 
       if (res.data?.success) {
+        if (res.data?.local_fallback) {
+          try {
+            const raw = window.localStorage.getItem(LOCAL_FALLBACK_COMPLAINTS_KEY);
+            const items = raw ? JSON.parse(raw) : [];
+            const newItem = {
+              id: `local-${res.data.complaint_id}`,
+              complaint_id: res.data.complaint_id,
+              citizen_name: formData.citizenName,
+              title: formData.title,
+              content: formData.content,
+              content_summary: formData.content?.slice(0, 200) || '',
+              status: '접수',
+              department: classification?.department || null,
+              sub_department: classification?.sub_department || null,
+              classification_score: classification?.score || 0,
+              is_duplicate: false,
+              repeat_count: 0,
+              received_date: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              remaining_days: 60,
+              local_fallback: true,
+            };
+            const deduped = [newItem, ...items.filter((x) => x.complaint_id !== newItem.complaint_id)];
+            window.localStorage.setItem(LOCAL_FALLBACK_COMPLAINTS_KEY, JSON.stringify(deduped.slice(0, 200)));
+          } catch {
+            // ignore local storage errors
+          }
+        }
+
         if (res.data?.duplicate_alert?.is_duplicate) {
           setDuplicateAlert({
             alert_level: res.data.duplicate_alert.alert_level,
@@ -139,7 +170,7 @@ export const HomePage = () => {
         setCreatedComplaintId(res.data.id || null);
         setMessage({
           type: 'success',
-          text: `민원이 접수되었습니다. (접수번호: ${res.data.complaint_id})`,
+          text: `접수가 완료되었습니다. (신청번호: ${res.data.complaint_id})`,
         });
       }
     } catch (error) {

@@ -5,6 +5,9 @@ import { ComplaintDetailModal } from '../components/ComplaintDetailModal';
 import { complaintService, departmentService } from '../services/api';
 import './DashboardPage.css';
 
+const LOCAL_FALLBACK_COMPLAINTS_KEY = 'local_fallback_complaints';
+const PAGE_SIZE = 10;
+
 export const DashboardPage = () => {
   const location = useLocation();
   const [complaints, setComplaints] = useState([]);
@@ -26,13 +29,39 @@ export const DashboardPage = () => {
     async (page = 1) => {
       setLoading(true);
       try {
-        const params = { page, per_page: 10 };
+        const params = { page: 1, per_page: 500 };
         if (selectedDepartment) params.department_id = Number(selectedDepartment);
         if (statusFilter) params.status = statusFilter;
 
         const res = await complaintService.listComplaints(params);
-        setComplaints(res.data.complaints || []);
-        setTotalPages(res.data.pages || 1);
+        const serverComplaints = res.data.complaints || [];
+        let localComplaints = [];
+        try {
+          const raw = window.localStorage.getItem(LOCAL_FALLBACK_COMPLAINTS_KEY);
+          const parsed = raw ? JSON.parse(raw) : [];
+          localComplaints = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          localComplaints = [];
+        }
+
+        // Department filter uses server-side numeric ID, so skip local rows when department filter is active.
+        if (selectedDepartment) {
+          localComplaints = [];
+        }
+        if (statusFilter) {
+          localComplaints = localComplaints.filter((c) => c.status === statusFilter);
+        }
+
+        const existingIds = new Set(serverComplaints.map((c) => c.complaint_id));
+        const merged = [...localComplaints.filter((c) => !existingIds.has(c.complaint_id)), ...serverComplaints];
+        merged.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+        const pages = Math.max(1, Math.ceil(merged.length / PAGE_SIZE));
+        const start = (page - 1) * PAGE_SIZE;
+        const paged = merged.slice(start, start + PAGE_SIZE);
+
+        setComplaints(paged);
+        setTotalPages(pages);
         setCurrentPage(page);
       } finally {
         setLoading(false);
@@ -130,10 +159,19 @@ export const DashboardPage = () => {
                 </thead>
                 <tbody>
                   {complaints.map((c) => (
-                    <tr key={c.id} className={targetComplaintId === c.id ? 'target-row' : ''}>
+                    <tr key={c.id || c.complaint_id} className={targetComplaintId === c.id ? 'target-row' : ''}>
                       <td>{formatDate(c.created_at)}</td>
                       <td>{formatDate(c.received_date)}</td>
-                      <td className="title-cell" onClick={() => complaintService.getComplaint(c.id).then((r) => setSelectedComplaint(r.data))}>
+                      <td
+                        className="title-cell"
+                        onClick={() => {
+                          if (String(c.id || '').startsWith('local-') || c.local_fallback) {
+                            setSelectedComplaint(c);
+                            return;
+                          }
+                          complaintService.getComplaint(c.id).then((r) => setSelectedComplaint(r.data));
+                        }}
+                      >
                         {c.title}
                       </td>
                       <td>{c.citizen_name}</td>

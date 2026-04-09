@@ -1,5 +1,4 @@
 import hashlib
-import uuid
 from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
@@ -23,6 +22,16 @@ bp = Blueprint("complaints", __name__, url_prefix="/api/complaints")
 
 def hash_citizen_id(citizen_id: str) -> str:
     return hashlib.sha256((citizen_id or "").encode("utf-8")).hexdigest()
+
+
+def generate_receipt_number() -> str:
+    # 접수번호 규칙: 1AA-YYMM-###### (전자접수/연월/월별 순번)
+    now_kst = datetime.utcnow() + timedelta(hours=9)
+    yymm = now_kst.strftime("%y%m")
+    prefix = f"1AA-{yymm}-"
+    monthly_count = Complaint.query.filter(Complaint.complaint_id.like(f"{prefix}%")).count()
+    sequence = monthly_count + 1
+    return f"{prefix}{sequence:06d}"
 
 
 def _serialize_complaint_row(complaint: Complaint) -> dict:
@@ -63,7 +72,7 @@ def create_complaint():
 
     try:
         complaint = Complaint(
-            complaint_id=f"CMPT-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}",
+            complaint_id=generate_receipt_number(),
             citizen_id=hash_citizen_id(data["citizen_id"]),
             citizen_name=data["citizen_name"],
             citizen_phone=data.get("citizen_phone", ""),
