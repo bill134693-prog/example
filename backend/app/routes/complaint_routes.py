@@ -54,7 +54,7 @@ def create_complaint():
     required_fields = ["citizen_id", "citizen_name", "title", "content"]
     missing = [f for f in required_fields if not data.get(f)]
     if missing:
-        return jsonify({"error": f"필수 필드 누락: {', '.join(missing)}"}), 400
+        return jsonify({"error": f"?꾩닔 ?꾨뱶 ?꾨씫: {', '.join(missing)}"}), 400
 
     try:
         complaint = Complaint(
@@ -82,12 +82,20 @@ def create_complaint():
         )
 
         dept = Department.query.filter_by(name=classification_result["department"]).first()
+        if not dept and classification_result.get("department_code"):
+            dept = Department.query.filter_by(code=classification_result["department_code"]).first()
+
         if dept:
             complaint.department_id = dept.id
             sub_dept = SubDepartment.query.filter_by(
                 department_id=dept.id,
                 name=classification_result["sub_department"],
             ).first()
+            if not sub_dept and classification_result.get("sub_department_code"):
+                sub_dept = SubDepartment.query.filter_by(
+                    department_id=dept.id,
+                    code=classification_result["sub_department_code"],
+                ).first()
             if sub_dept:
                 complaint.sub_department_id = sub_dept.id
 
@@ -103,9 +111,9 @@ def create_complaint():
 
         reasoning_basis = classification_result.get("classification_basis", {})
         reasoning_text = (
-            f"법적근거: {reasoning_basis.get('legal_basis', '-')}; "
-            f"정책근거: {reasoning_basis.get('policy_basis', '-')}; "
-            f"매칭키워드: {', '.join(reasoning_basis.get('keywords', [])) or '-'}"
+            f"踰뺤쟻洹쇨굅: {reasoning_basis.get('legal_basis', '-')}; "
+            f"?뺤콉洹쇨굅: {reasoning_basis.get('policy_basis', '-')}; "
+            f"留ㅼ묶?ㅼ썙?? {', '.join(reasoning_basis.get('keywords', [])) or '-'}"
         )
 
         db.session.add(
@@ -191,7 +199,7 @@ def create_complaint():
 def get_complaint(complaint_id: int):
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
-        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
+        return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
 
     remaining_days = None
     if complaint.due_date:
@@ -282,7 +290,7 @@ def list_complaints():
 def update_complaint(complaint_id: int):
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
-        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
+        return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
 
     data = request.get_json(silent=True) or {}
     if "status" in data:
@@ -311,11 +319,11 @@ def _add_processing_history(complaint: Complaint, action_type: str, action_by: s
 def answer_complaint(complaint_id: int):
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
-        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
+        return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
 
     data = request.get_json(silent=True) or {}
     if not data.get("response_content") or not data.get("handler_id"):
-        return jsonify({"error": "response_content와 handler_id가 필요합니다."}), 400
+        return jsonify({"error": "response_content? handler_id媛 ?꾩슂?⑸땲??"}), 400
 
     status_before = complaint.status
     complaint.response_content = data["response_content"]
@@ -323,7 +331,7 @@ def answer_complaint(complaint_id: int):
     complaint.handler_id = data["handler_id"]
     complaint.status = ComplaintStatus.RESPONSE_COMPLETED.value
 
-    _add_processing_history(complaint, "답변", data["handler_id"], data["response_content"], status_before)
+    _add_processing_history(complaint, "?듬?", data["handler_id"], data["response_content"], status_before)
     db.session.commit()
     return jsonify({"success": True, "status": complaint.status}), 200
 
@@ -332,20 +340,20 @@ def answer_complaint(complaint_id: int):
 def close_complaint(complaint_id: int):
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
-        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
+        return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
 
     data = request.get_json(silent=True) or {}
     if not data.get("handler_id"):
-        return jsonify({"error": "handler_id가 필요합니다."}), 400
+        return jsonify({"error": "handler_id媛 ?꾩슂?⑸땲??"}), 400
 
     status_before = complaint.status
     complaint.status = ComplaintStatus.CLOSED.value
 
     _add_processing_history(
         complaint,
-        "종결",
+        "醫낃껐",
         data["handler_id"],
-        data.get("close_reason", "민원 종결 처리"),
+        data.get("close_reason", "誘쇱썝 醫낃껐 泥섎━"),
         status_before,
     )
     db.session.commit()
@@ -356,20 +364,20 @@ def close_complaint(complaint_id: int):
 def withdraw_complaint(complaint_id: int):
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
-        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
+        return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
 
     data = request.get_json(silent=True) or {}
     if not data.get("handler_id"):
-        return jsonify({"error": "handler_id가 필요합니다."}), 400
+        return jsonify({"error": "handler_id媛 ?꾩슂?⑸땲??"}), 400
 
     status_before = complaint.status
     complaint.status = ComplaintStatus.WITHDRAWN.value
 
     _add_processing_history(
         complaint,
-        "취하",
+        "痍⑦븯",
         data["handler_id"],
-        data.get("reason", "민원 취하 처리"),
+        data.get("reason", "誘쇱썝 痍⑦븯 泥섎━"),
         status_before,
     )
     db.session.commit()
@@ -380,20 +388,20 @@ def withdraw_complaint(complaint_id: int):
 def transfer_complaint(complaint_id: int):
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
-        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
+        return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
 
     data = request.get_json(silent=True) or {}
     if not data.get("handler_id") or not data.get("target_department"):
-        return jsonify({"error": "handler_id와 target_department가 필요합니다."}), 400
+        return jsonify({"error": "handler_id? target_department媛 ?꾩슂?⑸땲??"}), 400
 
     status_before = complaint.status
     complaint.status = ComplaintStatus.TRANSFERRED.value
 
     _add_processing_history(
         complaint,
-        "이송",
+        "?댁넚",
         data["handler_id"],
-        f"{data['target_department']}로 이송",
+        f"{data['target_department']}濡??댁넚",
         status_before,
     )
     db.session.commit()
@@ -404,17 +412,17 @@ def transfer_complaint(complaint_id: int):
 def reassign_complaint(complaint_id: int):
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
-        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
+        return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
 
     data = request.get_json(silent=True) or {}
     required = ["handler_id", "target_department_id", "target_sub_department_id"]
     if not all(data.get(f) for f in required):
-        return jsonify({"error": "필수 필드 누락"}), 400
+        return jsonify({"error": "?꾩닔 ?꾨뱶 ?꾨씫"}), 400
 
     target_dept = Department.query.get(data["target_department_id"])
     target_sub_dept = SubDepartment.query.get(data["target_sub_department_id"])
     if not target_dept or not target_sub_dept:
-        return jsonify({"error": "대상 부처/부서를 찾을 수 없습니다."}), 404
+        return jsonify({"error": "???遺泥?遺?쒕? 李얠쓣 ???놁뒿?덈떎."}), 404
 
     status_before = complaint.status
     complaint.department_id = target_dept.id
@@ -422,9 +430,9 @@ def reassign_complaint(complaint_id: int):
 
     _add_processing_history(
         complaint,
-        "재지정",
+        "?ъ???,
         data["handler_id"],
-        f"{target_dept.name} > {target_sub_dept.name}로 재지정",
+        f"{target_dept.name} > {target_sub_dept.name}濡??ъ???,
         status_before,
     )
 
@@ -446,7 +454,7 @@ def reassign_complaint(complaint_id: int):
 def get_reassign_suggestions(complaint_id: int):
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
-        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
+        return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
 
     classification_result = classification_engine.classify(complaint.title, complaint.content)
     suggested_dept = Department.query.filter_by(name=classification_result["department"]).first()
@@ -467,7 +475,7 @@ def get_reassign_suggestions(complaint_id: int):
                 "sub_department_id": suggested_sub.id,
                 "sub_department_name": suggested_sub.name,
                 "confidence": classification_result["overall_score"],
-                "reason": "민원 내용 기반 자동 분류 결과",
+                "reason": "誘쇱썝 ?댁슜 湲곕컲 ?먮룞 遺꾨쪟 寃곌낵",
             }
         )
 
@@ -500,7 +508,7 @@ def get_reassign_suggestions(complaint_id: int):
 def get_department_stats(department_id: int):
     dept = Department.query.get(department_id)
     if not dept:
-        return jsonify({"error": "부처를 찾을 수 없습니다."}), 404
+        return jsonify({"error": "遺泥섎? 李얠쓣 ???놁뒿?덈떎."}), 404
 
     status_values = [
         ComplaintStatus.RECEIVED.value,

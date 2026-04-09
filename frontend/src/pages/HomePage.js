@@ -6,8 +6,25 @@ import { Header } from '../components/Header';
 import { classificationService, complaintService, departmentService } from '../services/api';
 import './HomePage.css';
 
+const buildRecommendationReason = (basis) => {
+  if (!basis) {
+    return '민원 본문 키워드와 담당 업무 매칭 결과를 기반으로 추천되었습니다.';
+  }
+
+  const parts = [];
+
+  if (basis.reason) parts.push(basis.reason);
+  if (basis.keywords && basis.keywords.length > 0) parts.push(`키워드 일치: ${basis.keywords.join(', ')}`);
+  if (basis.legal_basis) parts.push(`근거 법령: ${basis.legal_basis}`);
+
+  return parts.length > 0
+    ? parts.join(' | ')
+    : '민원 본문 키워드와 담당 업무 매칭 결과를 기반으로 추천되었습니다.';
+};
+
 export const HomePage = () => {
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [classification, setClassification] = useState(null);
@@ -18,9 +35,10 @@ export const HomePage = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        await departmentService.initSampleData();
+        // 깨진 샘플 데이터가 남아있을 수 있어 동기화(업서트) 수행
+        await departmentService.initSampleData(true);
       } catch {
-        // already initialized
+        // ignore
       }
     };
     init();
@@ -34,16 +52,17 @@ export const HomePage = () => {
 
     try {
       const res = await classificationService.analyze(submittedFormData.title, submittedFormData.content);
+      const basis = res.data.classification_basis || {};
+
       setFormData(submittedFormData);
       setClassification({
         department: res.data.department,
         sub_department: res.data.sub_department,
         score: res.data.confidence?.overall || 0,
+        reason: buildRecommendationReason(basis),
       });
-      setMessage({
-        type: 'info',
-        text: '추천 부서를 확인한 뒤 접수 버튼을 눌러주세요.',
-      });
+
+      setMessage({ type: 'info', text: '추천 정보를 확인한 뒤 접수 버튼을 눌러주세요.' });
     } catch (error) {
       const status = error.response?.status;
       setMessage({
@@ -102,7 +121,7 @@ export const HomePage = () => {
 
   return (
     <div className="home-page">
-      <Header title="민원인용" description="민원 내용을 분석해 추천 부서를 확인한 뒤 접수하세요" />
+      <Header title="민원인용" description="민원 내용을 분석해 추천 정보를 확인한 뒤 접수하세요" />
 
       <div className="container">
         {message && <div className={`message message-${message.type}`}>{message.text}</div>}
@@ -115,7 +134,7 @@ export const HomePage = () => {
 
         {classification && (
           <div className="recommendation-section">
-            <h2>추천 부서 확인</h2>
+            <h2>추천 정보 확인</h2>
             <p className="step-description">2. 추천 결과를 확인하고 최종 접수합니다.</p>
             <div className="recommendation-box">
               <div className="recommendation-item">
@@ -125,6 +144,10 @@ export const HomePage = () => {
               <div className="recommendation-item">
                 <label>추천 부서</label>
                 <span className="recommendation-value">{classification.sub_department}</span>
+              </div>
+              <div className="recommendation-item">
+                <label>추천 사유</label>
+                <span className="recommendation-value">{classification.reason}</span>
               </div>
               <div className="recommendation-item">
                 <label>신뢰도</label>

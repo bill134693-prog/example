@@ -1,14 +1,37 @@
 from flask import Blueprint, jsonify, request
 
 from app import db
+from app.legal_basis_data import LEGAL_CLASSIFICATION_RULES
 from app.models import Department, SubDepartment
 
 bp = Blueprint("departments", __name__, url_prefix="/api/departments")
 
 
+def _seed_departments() -> list:
+    rows = []
+    for dept_name, dept_meta in LEGAL_CLASSIFICATION_RULES.items():
+        rows.append(
+            {
+                "name": dept_name,
+                "code": dept_meta["code"],
+                "description": dept_meta["legal_reference"],
+                "sub_departments": [
+                    {
+                        "name": sub_name,
+                        "code": sub_meta["code"],
+                        "keywords": ", ".join(sub_meta.get("keywords", [])),
+                        "description": sub_meta.get("reason", ""),
+                    }
+                    for sub_name, sub_meta in dept_meta["sub_departments"].items()
+                ],
+            }
+        )
+    return rows
+
+
 @bp.route("/", methods=["GET"])
 def list_departments():
-    departments = Department.query.all()
+    departments = Department.query.order_by(Department.name.asc()).all()
     result = []
     for dept in departments:
         result.append(
@@ -37,7 +60,7 @@ def list_departments():
 def create_department():
     data = request.get_json(silent=True) or {}
     if not data.get("name") or not data.get("code"):
-        return jsonify({"error": "name과 code는 필수입니다."}), 400
+        return jsonify({"error": "name and code are required."}), 400
 
     try:
         dept = Department(name=data["name"], code=data["code"], description=data.get("description", ""))
@@ -77,7 +100,7 @@ def create_sub_department():
     data = request.get_json(silent=True) or {}
     required = ["department_id", "name", "code"]
     if not all(data.get(f) for f in required):
-        return jsonify({"error": "필수 필드 누락"}), 400
+        return jsonify({"error": "required fields are missing"}), 400
 
     try:
         sub = SubDepartment(
@@ -97,61 +120,51 @@ def create_sub_department():
 
 @bp.route("/init-sample-data", methods=["POST"])
 def init_sample_data():
+    force = request.args.get("force", "false").lower() == "true"
+
     try:
+        rows = _seed_departments()
+
+        if force:
+            SubDepartment.query.delete()
+            Department.query.delete()
+            db.session.flush()
+
         if Department.query.count() > 0:
-            return jsonify({"success": False, "message": "샘플 데이터가 이미 존재합니다."}), 400
+            # upsert style: ensure codes from rules exist
+            existing_by_code = {d.code: d for d in Department.query.all()}
+            for dept_data in rows:
+                dept = existing_by_code.get(dept_data["code"])
+                if not dept:
+                    dept = Department(name=dept_data["name"], code=dept_data["code"], description=dept_data["description"])
+                    db.session.add(dept)
+                    db.session.flush()
+                else:
+                    dept.name = dept_data["name"]
+                    dept.description = dept_data["description"]
 
-        departments_data = [
-            {
-                "name": "환경부",
-                "code": "MOE",
-                "description": "환경 정책 및 오염 관리",
-                "sub_departments": [
-                    {"name": "대기환경과", "code": "AE", "keywords": "대기, 미세먼지, 악취"},
-                    {"name": "수질환경과", "code": "WE", "keywords": "수질, 하천, 폐수"},
-                ],
-            },
-            {
-                "name": "국토교통부",
-                "code": "MOLIT",
-                "description": "국토/교통 인프라 정책",
-                "sub_departments": [
-                    {"name": "도로과", "code": "RD", "keywords": "도로, 포트홀, 보도"},
-                    {"name": "대중교통과", "code": "PT", "keywords": "버스, 지하철, 노선"},
-                    {"name": "교통안전과", "code": "TS", "keywords": "교통사고, 신호등, 과속"},
-                ],
-            },
-            {
-                "name": "보건복지부",
-                "code": "MOHW",
-                "description": "의료/복지 정책",
-                "sub_departments": [
-                    {"name": "의료정책과", "code": "MP", "keywords": "병원, 진료, 약국"},
-                    {"name": "질병대응과", "code": "DR", "keywords": "감염, 백신, 방역"},
-                    {"name": "노인정책과", "code": "AP", "keywords": "노인, 요양, 돌봄"},
-                ],
-            },
-            {
-                "name": "경찰청",
-                "code": "NPA",
-                "description": "치안 및 수사",
-                "sub_departments": [
-                    {"name": "교통경찰과", "code": "TP", "keywords": "주정차, 교통법규, 면허"},
-                    {"name": "수사과", "code": "INV", "keywords": "사기, 폭행, 고소"},
-                ],
-            },
-            {
-                "name": "교육부",
-                "code": "MOE_EDU",
-                "description": "교육 정책",
-                "sub_departments": [
-                    {"name": "학교정책과", "code": "SP", "keywords": "학교, 급식, 등록금"},
-                    {"name": "특수교육과", "code": "SE", "keywords": "특수교육, 장애학생, 보조기기"},
-                ],
-            },
-        ]
+                existing_subs = {s.code: s for s in SubDepartment.query.filter_by(department_id=dept.id).all()}
+                for sub_data in dept_data["sub_departments"]:
+                    sub = existing_subs.get(sub_data["code"])
+                    if not sub:
+                        db.session.add(
+                            SubDepartment(
+                                department_id=dept.id,
+                                name=sub_data["name"],
+                                code=sub_data["code"],
+                                keywords=sub_data.get("keywords", ""),
+                                description=sub_data.get("description", ""),
+                            )
+                        )
+                    else:
+                        sub.name = sub_data["name"]
+                        sub.keywords = sub_data.get("keywords", "")
+                        sub.description = sub_data.get("description", "")
 
-        for dept_data in departments_data:
+            db.session.commit()
+            return jsonify({"success": True, "message": "department seed synchronized"}), 200
+
+        for dept_data in rows:
             dept = Department(name=dept_data["name"], code=dept_data["code"], description=dept_data["description"])
             db.session.add(dept)
             db.session.flush()
@@ -168,7 +181,7 @@ def init_sample_data():
                 )
 
         db.session.commit()
-        return jsonify({"success": True, "message": "샘플 데이터 초기화 완료", "total_departments": len(departments_data)}), 201
+        return jsonify({"success": True, "message": "department seed initialized", "total_departments": len(rows)}), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

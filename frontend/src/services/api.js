@@ -69,7 +69,8 @@ export const departmentService = {
     return api.get('/departments/sub-departments', { params });
   },
   createSubDepartment: (data) => api.post('/departments/sub-departments', data),
-  initSampleData: () => api.post('/departments/init-sample-data'),
+  initSampleData: (force = false) =>
+    api.post(`/departments/init-sample-data${force ? '?force=true' : ''}`),
 };
 
 export default api;
