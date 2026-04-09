@@ -144,6 +144,7 @@ export const complaintService = {
   getComplaint: (id) => api.get(`/complaints/${id}`),
   listComplaints: (params = {}) => api.get('/complaints/', { params }),
   updateComplaint: (id, data) => actionRequestWithFallback(`/complaints/${id}`, data),
+  updateComplaintType: (id, data) => actionRequestWithFallback(`/complaints/${id}/complaint-type`, data),
   answerComplaint: (id, data) => actionRequestWithFallback(`/complaints/${id}/answer`, data),
   getAiAnswerSuggestion: (id) => api.get(`/complaints/${id}/ai-answer-suggestion`),
   closeComplaint: (id, data) => actionRequestWithFallback(`/complaints/${id}/close`, data),

@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { complaintService } from '../services/api';
-import { getLocalRecommendation, getLocalRecommendations, LEGAL_RULES } from '../services/localRecommendation';
+import {
+  getLocalRecommendation,
+  getLocalRecommendations,
+  LEGAL_RULES,
+  estimateComplaintDueBusinessDays,
+} from '../services/localRecommendation';
 import './ComplaintDetailModal.css';
 
 export const ComplaintDetailModal = ({ complaint, onClose }) => {
@@ -12,6 +17,9 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
   const [aiLoading, setAiLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [reassignSuggestions, setReassignSuggestions] = useState(null);
+  const [editingType, setEditingType] = useState(false);
+  const [complaintType, setComplaintType] = useState(complaint?.complaint_type || '기타민원');
+  const complaintTypeOptions = ['법령질의/건의민원', '일반질의', '고충민원', '기타민원'];
 
   const executeAction = async (fn, payload, successText) => {
     setLoading(true);
@@ -108,6 +116,18 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
   };
 
   const formatDate = (value) => (value ? new Date(value).toLocaleString('ko-KR') : '-');
+
+  const addBusinessDaysLite = (date, days) => {
+    const d = new Date(date);
+    let remain = Number(days || 0);
+    while (remain > 0) {
+      d.setDate(d.getDate() + 1);
+      const wd = d.getDay();
+      if (wd === 0 || wd === 6) continue;
+      remain -= 1;
+    }
+    return d;
+  };
 
   const updateLocalFallbackComplaint = (patch) => {
     try {
@@ -207,6 +227,40 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
     setTimeout(() => onClose(), 800);
   };
 
+  const handleUpdateComplaintType = async () => {
+    if (!complaintType) return;
+    if (isLocalFallback) {
+      const estimated = estimateComplaintDueBusinessDays(complaint.title, complaint.content);
+      const days = complaintType === estimated.type ? estimated.days : complaintType === '법령질의/건의민원' ? 14 : 7;
+      const dueDate = addBusinessDaysLite(new Date(), days).toISOString();
+      updateLocalFallbackComplaint({
+        complaint_type: complaintType,
+        due_date: dueDate,
+        remaining_days: days,
+      });
+      setMessage({ type: 'success', text: `민원종류가 '${complaintType}'로 수정되었고 처리기한이 자동 조정되었습니다.` });
+      setEditingType(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await complaintService.updateComplaintType(complaint.id, {
+        complaint_type: complaintType,
+        handler_id: 'admin',
+      });
+      complaint.complaint_type = res?.data?.complaint_type || complaintType;
+      complaint.due_date = res?.data?.due_date || complaint.due_date;
+      complaint.remaining_days = res?.data?.remaining_days ?? complaint.remaining_days;
+      setMessage({ type: 'success', text: '민원종류 및 처리기한이 수정되었습니다.' });
+      setEditingType(false);
+    } catch (error) {
+      setMessage({ type: 'error', text: error.response?.data?.error || error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -226,6 +280,29 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
               <div className="info-item"><label>접수일:</label><span>{formatDate(complaint.received_date)}</span></div>
               <div className="info-item"><label>상태:</label><span className={`status-badge status-${complaint.status}`}>{complaint.status}</span></div>
               <div className="info-item"><label>처리기한:</label><span>{complaint.remaining_days === null ? '-' : `${complaint.remaining_days}일`}</span></div>
+              <div className="info-item">
+                <label>민원종류:</label>
+                <span>
+                  {editingType ? (
+                    <>
+                      <select value={complaintType} onChange={(e) => setComplaintType(e.target.value)}>
+                        {complaintTypeOptions.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>{' '}
+                      <button onClick={handleUpdateComplaintType} disabled={loading}>저장</button>{' '}
+                      <button onClick={() => setEditingType(false)} disabled={loading}>취소</button>
+                    </>
+                  ) : (
+                    <>
+                      {complaint.complaint_type || '기타민원'}{' '}
+                      <button onClick={() => setEditingType(true)}>[수정]</button>
+                    </>
+                  )}
+                </span>
+              </div>
             </div>
           </section>
 

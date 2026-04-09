@@ -39,7 +39,7 @@ def generate_receipt_number() -> str:
     return f"{prefix}{sequence:06d}"
 
 
-def _detect_processing_deadline(title: str, content: str) -> tuple[int, str]:
+def _detect_complaint_type_and_deadline(title: str, content: str) -> tuple[str, int, str]:
     text = f"{title or ''} {content or ''}".lower()
     proactive_keywords = ["적극행정", "적극 행정", "규제개혁신문고", "국민신청"]
     law_query_keywords = ["법령", "법률", "시행령", "시행규칙", "조문", "해석", "적용", "근거법"]
@@ -48,12 +48,26 @@ def _detect_processing_deadline(title: str, content: str) -> tuple[int, str]:
     general_query_keywords = ["문의", "질의", "확인", "알려", "가능한지", "어떻게"]
 
     if any(k in text for k in proactive_keywords):
-        return 60, "적극행정 민원"
+        return "기타민원", 60, "적극행정 민원(예외적 장기 처리기한)"
     if any(k in text for k in law_query_keywords) or any(k in text for k in suggestion_keywords):
-        return 14, "법령질의/건의민원"
-    if any(k in text for k in general_query_keywords) or any(k in text for k in grievance_keywords):
-        return 7, "일반질의/고충민원"
-    return 7, "일반 민원"
+        return "법령질의/건의민원", 14, "민원 처리에 관한 법률 시행령 제14조·제15조"
+    if any(k in text for k in grievance_keywords):
+        return "고충민원", 7, "민원 처리에 관한 법률 시행령 제17조"
+    if any(k in text for k in general_query_keywords):
+        return "일반질의", 7, "민원 처리에 관한 법률 시행령 제14조"
+    return "기타민원", 7, "기관 내부 기준(기타민원)"
+
+
+def _deadline_days_by_complaint_type(complaint_type: str, title: str, content: str) -> tuple[int, str]:
+    text = f"{title or ''} {content or ''}".lower()
+    proactive_keywords = ["적극행정", "적극 행정", "규제개혁신문고", "국민신청"]
+    if complaint_type == "법령질의/건의민원":
+        return 14, "민원 처리에 관한 법률 시행령 제14조·제15조"
+    if complaint_type in ("일반질의", "고충민원"):
+        return 7, "민원 처리에 관한 법률 시행령 제14조·제17조"
+    if complaint_type == "기타민원" and any(k in text for k in proactive_keywords):
+        return 60, "적극행정 민원(예외적 장기 처리기한)"
+    return 7, "기관 내부 기준(기타민원)"
 
 
 def _add_working_days(start_kst: datetime, days: int) -> datetime:
@@ -91,6 +105,7 @@ def _serialize_complaint_row(complaint: Complaint) -> dict:
         "citizen_name": complaint.citizen_name,
         "title": complaint.title,
         "status": complaint.status,
+        "complaint_type": complaint.complaint_type,
         "department": complaint.department.name if complaint.department else None,
         "sub_department": complaint.sub_department.name if complaint.sub_department else None,
         "is_duplicate": complaint.is_duplicate,
@@ -119,7 +134,9 @@ def create_complaint():
     try:
         now_utc = datetime.utcnow()
         now_kst = now_utc + timedelta(hours=9)
-        deadline_days, deadline_type = _detect_processing_deadline(data["title"], data["content"])
+        complaint_type, deadline_days, deadline_basis = _detect_complaint_type_and_deadline(
+            data["title"], data["content"]
+        )
         due_kst = _add_working_days(now_kst, deadline_days)
         due_utc = due_kst - timedelta(hours=9)
 
@@ -132,6 +149,8 @@ def create_complaint():
             title=data["title"],
             content=data["content"],
             status=ComplaintStatus.RECEIVED.value,
+            complaint_type=complaint_type,
+            complaint_type_manual=False,
             received_date=now_utc,
             due_date=due_utc,
         )
@@ -264,8 +283,9 @@ def create_complaint():
                         "score": classification_result["overall_score"],
                     },
                     "deadline": {
-                        "type": deadline_type,
+                        "type": complaint_type,
                         "business_days": deadline_days,
+                        "basis": deadline_basis,
                         "due_date": complaint.due_date.isoformat() if complaint.due_date else None,
                     },
                     "duplicate_alert": {
@@ -313,6 +333,7 @@ def get_complaint(complaint_id: int):
             "content": complaint.content,
             "content_summary": complaint.content_summary,
             "status": complaint.status,
+            "complaint_type": complaint.complaint_type,
             "department": complaint.department.name if complaint.department else None,
             "sub_department": complaint.sub_department.name if complaint.sub_department else None,
             "is_duplicate": complaint.is_duplicate,
@@ -392,6 +413,68 @@ def update_complaint(complaint_id: int):
     db.session.commit()
 
     return jsonify({"success": True, "complaint_id": complaint.complaint_id, "status": complaint.status}), 200
+
+
+@bp.route("/<int:complaint_id>/complaint-type", methods=["PUT", "POST", "OPTIONS"])
+@bp.route("/<int:complaint_id>/complaint-type/", methods=["PUT", "POST", "OPTIONS"])
+def update_complaint_type(complaint_id: int):
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
+
+    complaint = Complaint.query.get(complaint_id)
+    if not complaint:
+        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
+
+    data = request.get_json(silent=True) or {}
+    new_type = (data.get("complaint_type") or "").strip()
+    allowed_types = ["법령질의/건의민원", "일반질의", "고충민원", "기타민원"]
+    if new_type not in allowed_types:
+        return jsonify({"error": f"complaint_type must be one of {', '.join(allowed_types)}"}), 400
+
+    base_utc = complaint.received_date or datetime.utcnow()
+    base_kst = base_utc + timedelta(hours=9)
+    deadline_days, deadline_basis = _deadline_days_by_complaint_type(
+        new_type, complaint.title, complaint.content
+    )
+    due_kst = _add_working_days(base_kst, deadline_days)
+    due_utc = due_kst - timedelta(hours=9)
+
+    old_type = complaint.complaint_type or "-"
+    complaint.complaint_type = new_type
+    complaint.complaint_type_manual = True
+    complaint.due_date = due_utc
+
+    _add_processing_history(
+        complaint,
+        "민원종류수정",
+        data.get("handler_id", "admin"),
+        f"{old_type} -> {new_type} / 처리기한 {deadline_days}영업일 자동 재산정",
+        complaint.status,
+    )
+
+    db.session.commit()
+
+    remaining_days = None
+    if complaint.due_date:
+        remaining_days = (complaint.due_date - datetime.utcnow()).days
+
+    return (
+        jsonify(
+            {
+                "success": True,
+                "complaint_id": complaint.complaint_id,
+                "complaint_type": complaint.complaint_type,
+                "due_date": complaint.due_date.isoformat() if complaint.due_date else None,
+                "remaining_days": remaining_days,
+                "deadline": {
+                    "type": complaint.complaint_type,
+                    "business_days": deadline_days,
+                    "basis": deadline_basis,
+                },
+            }
+        ),
+        200,
+    )
 
 
 def _add_processing_history(complaint: Complaint, action_type: str, action_by: str, action_description: str, status_before: str):

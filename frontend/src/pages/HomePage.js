@@ -171,6 +171,7 @@ export const HomePage = () => {
               content: formData.content,
               content_summary: summarizeComplaintContent(formData.title, formData.content),
               status: '분류완료',
+              complaint_type: estimateComplaintDueBusinessDays(formData.title, formData.content).type,
               department:
                 classification?.recommendations?.[selectedRecommendationIndex]?.department || classification?.department || null,
               sub_department:

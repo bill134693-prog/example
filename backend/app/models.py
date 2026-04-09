@@ -63,6 +63,8 @@ class Complaint(db.Model):
     content = db.Column(db.Text, nullable=False)
     content_summary = db.Column(db.Text)
     status = db.Column(db.String(20), default=ComplaintStatus.RECEIVED.value)
+    complaint_type = db.Column(db.String(30), default="기타민원")
+    complaint_type_manual = db.Column(db.Boolean, default=False)
 
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
     sub_department_id = db.Column(db.Integer, db.ForeignKey("sub_departments.id"))
