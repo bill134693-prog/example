@@ -5,14 +5,27 @@ from app.classification_engine import classification_engine
 bp = Blueprint("classification", __name__, url_prefix="/api/classification")
 
 
-@bp.route("/analyze", methods=["POST"])
+@bp.route("/analyze", methods=["POST", "GET", "OPTIONS"])
+@bp.route("/analyze/", methods=["POST", "GET", "OPTIONS"])
 def analyze_complaint():
-    data = request.get_json(silent=True) or {}
-    if not data.get("title") or not data.get("content"):
-        return jsonify({"error": "title과 content는 필수입니다."}), 400
+    # Some environments can send GET or OPTIONS unexpectedly.
+    # We accept both POST/GET so the endpoint does not fail with 405.
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
+
+    if request.method == "GET":
+        title = request.args.get("title", "")
+        content = request.args.get("content", "")
+    else:
+        data = request.get_json(silent=True) or {}
+        title = data.get("title", "")
+        content = data.get("content", "")
+
+    if not title or not content:
+        return jsonify({"error": "title and content are required."}), 400
 
     try:
-        result = classification_engine.classify(data["title"], data["content"])
+        result = classification_engine.classify(title, content)
         return (
             jsonify(
                 {
@@ -33,12 +46,15 @@ def analyze_complaint():
         return jsonify({"error": str(e)}), 500
 
 
-@bp.route("/batch", methods=["POST"])
+@bp.route("/batch", methods=["POST", "OPTIONS"])
 def batch_classify():
+    if request.method == "OPTIONS":
+        return jsonify({"success": True}), 200
+
     data = request.get_json(silent=True) or {}
     complaints = data.get("complaints")
     if not isinstance(complaints, list):
-        return jsonify({"error": "complaints는 배열이어야 합니다."}), 400
+        return jsonify({"error": "complaints must be an array."}), 400
 
     results = []
     for complaint in complaints:
@@ -55,7 +71,7 @@ def batch_classify():
                     }
                 )
             else:
-                results.append({"id": complaint.get("id"), "error": "title/content 누락"})
+                results.append({"id": complaint.get("id"), "error": "title/content missing"})
         except Exception as e:
             results.append({"id": complaint.get("id"), "error": str(e)})
 

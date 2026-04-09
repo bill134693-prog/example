@@ -6,7 +6,7 @@ import os
 db = SQLAlchemy()
 
 def create_app(config_name=None):
-    """Flask 애플리케이션 팩토리"""
+    """Flask ?좏뵆由ъ??댁뀡 ?⑺넗由?""
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'development')
     
@@ -17,7 +17,12 @@ def create_app(config_name=None):
     
     # Initialize extensions
     db.init_app(app)
-    CORS(app)
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": "*"}},
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
     
     # Register blueprints
     from app.routes import complaint_routes, classification_routes, duplicate_routes, department_routes

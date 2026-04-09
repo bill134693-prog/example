@@ -41,10 +41,11 @@ export const HomePage = () => {
         text: '추천 부서를 확인한 뒤 접수 버튼을 눌러주세요.',
       });
     } catch (error) {
+      const status = error.response?.status;
       setMessage({
         type: 'error',
         text:
-          '분석 API 연결에 실패했습니다. 백엔드 실행 상태를 확인해주세요. (' +
+          `분석 API 연결에 실패했습니다${status ? ` (HTTP ${status})` : ''}. 백엔드 실행 상태를 확인해주세요. (` +
           (error.response?.data?.error || error.message) +
           ')',
       });
