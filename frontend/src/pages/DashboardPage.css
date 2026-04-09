@@ -1,0 +1,103 @@
+.dashboard-page .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.filter-section {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-weight: 600;
+}
+
+.filter-group select {
+  min-width: 180px;
+  padding: 8px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+}
+
+.complaints-section {
+  background: #fff;
+  border: 1px solid #e6e8ec;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.complaints-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.complaints-table th,
+.complaints-table td {
+  border-bottom: 1px solid #edf0f5;
+  padding: 10px;
+  text-align: left;
+}
+
+.title-cell {
+  cursor: pointer;
+  color: #0b63ce;
+}
+
+.title-cell:hover {
+  text-decoration: underline;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #f1f3f5;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.pagination button {
+  padding: 8px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.loading,
+.no-data {
+  padding: 20px;
+  text-align: center;
+  color: #667085;
+}
+
+@media (max-width: 900px) {
+  .filter-section {
+    flex-direction: column;
+  }
+
+  .complaints-table {
+    font-size: 12px;
+  }
+}
