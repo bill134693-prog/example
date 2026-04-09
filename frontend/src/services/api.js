@@ -55,6 +55,7 @@ export const complaintService = {
   listComplaints: (params = {}) => api.get('/complaints/', { params }),
   updateComplaint: (id, data) => api.put(`/complaints/${id}`, data),
   answerComplaint: (id, data) => api.put(`/complaints/${id}/answer`, data),
+  getAiAnswerSuggestion: (id) => api.get(`/complaints/${id}/ai-answer-suggestion`),
   closeComplaint: (id, data) => api.put(`/complaints/${id}/close`, data),
   withdrawComplaint: (id, data) => api.put(`/complaints/${id}/withdraw`, data),
   transferComplaint: (id, data) => api.put(`/complaints/${id}/transfer`, data),

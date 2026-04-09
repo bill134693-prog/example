@@ -35,6 +35,7 @@ export const HomePage = () => {
   const [duplicateAlert, setDuplicateAlert] = useState(null);
   const [formData, setFormData] = useState(null);
   const [createdComplaintId, setCreatedComplaintId] = useState(null);
+  const [nonActionableNotice, setNonActionableNotice] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -53,6 +54,7 @@ export const HomePage = () => {
     setMessage(null);
     setDuplicateAlert(null);
     setCreatedComplaintId(null);
+    setNonActionableNotice('');
 
     try {
       const res = await classificationService.analyze(submittedFormData.title, submittedFormData.content);
@@ -81,6 +83,12 @@ export const HomePage = () => {
         score: Number.isFinite(score) ? score : 0,
         reason: buildRecommendationReason(basis),
       });
+      if (String(department).startsWith('추천 어려움')) {
+        setNonActionableNotice(
+          basis.reason ||
+            '입력하신 내용은 민원 처리에 관한 법률상 민원 정의에 해당하는지 확인이 필요합니다. 대상 기관과 요청사항을 구체적으로 작성해 주세요.'
+        );
+      }
 
       setMessage({
         type: 'info',
@@ -180,8 +188,18 @@ export const HomePage = () => {
               </div>
             </div>
 
+            {nonActionableNotice && (
+              <div className="message message-error" style={{ marginTop: 12 }}>
+                {nonActionableNotice}
+              </div>
+            )}
+
             <div className="recommendation-buttons">
-              <button className="btn btn-confirm" onClick={handleSubmitComplaint} disabled={loading}>
+              <button
+                className="btn btn-confirm"
+                onClick={handleSubmitComplaint}
+                disabled={loading || Boolean(nonActionableNotice)}
+              >
                 {loading ? '접수중...' : '이 추천으로 접수'}
               </button>
 

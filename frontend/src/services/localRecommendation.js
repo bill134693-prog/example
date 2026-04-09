@@ -167,6 +167,62 @@ function hasAny(text, keywords) {
   return keywords.some((kw) => text.includes(kw));
 }
 
+function buildNonActionableRecommendation(reason, keywords = []) {
+  return {
+    success: true,
+    department: '추천 어려움(요지 불분명 또는 민원 정의 외)',
+    sub_department: '추가 사실관계 확인 필요',
+    confidence: {
+      department: 0,
+      sub_department: 0,
+      overall: 0,
+    },
+    classification_basis: {
+      keywords,
+      legal_basis: '민원 처리에 관한 법률 제2조(민원의 정의)',
+      policy_basis: '행정기관 처리 대상 여부 사전 확인 필요',
+      reason,
+    },
+    fallback_local: true,
+  };
+}
+
+function checkNonActionable(text, bestScore) {
+  const privateTerms = ['사인간', '개인 간', '개인사', '연인', '부부싸움', '친구와', '지인과', '채무', '돈을 빌려', '민사소송', '사적 분쟁'];
+  const adminTerms = ['시청', '구청', '군청', '주민센터', '동사무소', '행정기관', '공무원', '허가', '신고', '단속', '처분'];
+  const vagueTerms = ['문의', '상담', '도와주세요', '모르겠', '확인 부탁', '처리 부탁'];
+  const matchedPrivate = privateTerms.filter((k) => text.includes(k));
+  const hasAdminContext = hasAny(text, adminTerms);
+  const wordCount = text.split(' ').filter((w) => w.trim().length > 0).length;
+  const hasVagueOnlySignal = hasAny(text, vagueTerms) && bestScore <= 5 && wordCount <= 12;
+
+  if (matchedPrivate.length > 0 && !hasAdminContext) {
+    return {
+      nonActionable: true,
+      reason: '사인간 권리관계·민사 분쟁 성격으로 보여 민원 처리에 관한 법률상 행정기관 처리 민원에 해당하지 않을 수 있습니다.',
+      keywords: matchedPrivate,
+    };
+  }
+
+  if (hasVagueOnlySignal) {
+    return {
+      nonActionable: true,
+      reason: '민원의 핵심 사실관계가 부족해 담당 부서를 특정하기 어렵습니다. 대상 기관, 발생 시점, 요청사항을 구체적으로 작성해 주세요.',
+      keywords: [],
+    };
+  }
+
+  if (bestScore <= 2) {
+    return {
+      nonActionable: true,
+      reason: '민원의 요지가 불분명하여 담당 부서 자동 추천이 어렵습니다. 대상 기관·쟁점·요청사항을 구체적으로 작성해 주세요.',
+      keywords: [],
+    };
+  }
+
+  return { nonActionable: false, reason: '', keywords: [] };
+}
+
 function intentBoost(department, subDepartment, text) {
   let score = 0;
 
@@ -242,6 +298,10 @@ export function getLocalRecommendation(title, content) {
 
   const base = 0.40;
   const confidence = Math.min(0.95, base + best.scoreCount * 0.05);
+  const nonActionable = checkNonActionable(text, best.scoreCount);
+  if (nonActionable.nonActionable) {
+    return buildNonActionableRecommendation(nonActionable.reason, nonActionable.keywords);
+  }
 
   return {
     success: true,

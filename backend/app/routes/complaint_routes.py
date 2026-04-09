@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
 
+from app.ai_answer_engine import generate_ai_answer_suggestion
 from app import db
 from app.classification_engine import classification_engine
 from app.duplicate_detector import duplicate_detector
@@ -338,6 +339,23 @@ def answer_complaint(complaint_id: int):
     _add_processing_history(complaint, "?듬?", data["handler_id"], data["response_content"], status_before)
     db.session.commit()
     return jsonify({"success": True, "status": complaint.status}), 200
+
+
+@bp.route("/<int:complaint_id>/ai-answer-suggestion", methods=["GET", "POST"])
+def get_ai_answer_suggestion(complaint_id: int):
+    complaint = Complaint.query.get(complaint_id)
+    if not complaint:
+        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
+
+    payload = {
+        "id": complaint.id,
+        "title": complaint.title,
+        "content": complaint.content,
+        "department": complaint.department.name if complaint.department else None,
+        "sub_department": complaint.sub_department.name if complaint.sub_department else None,
+    }
+    suggestion = generate_ai_answer_suggestion(payload)
+    return jsonify({"success": True, **suggestion}), 200
 
 
 @bp.route("/<int:complaint_id>/close", methods=["PUT"])

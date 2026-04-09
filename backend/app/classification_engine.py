@@ -21,6 +21,79 @@ class ComplaintClassificationEngine:
     def _contains_any(text: str, keywords: List[str]) -> bool:
         return any(k in text for k in keywords)
 
+    def _build_non_actionable_result(self, reason: str, matched_keywords: List[str]) -> dict:
+        return {
+            "department": "추천 어려움(요지 불분명 또는 민원 정의 외)",
+            "sub_department": "추가 사실관계 확인 필요",
+            "department_code": None,
+            "sub_department_code": None,
+            "department_score": 0.0,
+            "sub_department_score": 0.0,
+            "overall_score": 0.0,
+            "classification_basis": {
+                "keywords": matched_keywords,
+                "legal_basis": "민원 처리에 관한 법률 제2조(민원의 정의)",
+                "policy_basis": "행정기관 처리 대상 여부 사전 확인 필요",
+                "reason": reason,
+            },
+        }
+
+    def _check_non_actionable(self, text: str, best_score: int) -> Tuple[bool, str, List[str]]:
+        private_terms = [
+            "사인간",
+            "개인 간",
+            "개인사",
+            "연인",
+            "부부싸움",
+            "친구와",
+            "지인과",
+            "채무",
+            "돈을 빌려",
+            "민사소송",
+            "사적 분쟁",
+        ]
+        admin_terms = [
+            "시청",
+            "구청",
+            "군청",
+            "주민센터",
+            "동사무소",
+            "행정기관",
+            "공무원",
+            "허가",
+            "신고",
+            "단속",
+            "처분",
+        ]
+        vague_terms = ["문의", "상담", "도와주세요", "모르겠", "확인 부탁", "처리 부탁"]
+        matched_private = [k for k in private_terms if k in text]
+        has_admin_context = self._contains_any(text, admin_terms)
+        word_count = len([w for w in text.split(" ") if w.strip()])
+        has_vague_only_signal = self._contains_any(text, vague_terms) and best_score <= 5 and word_count <= 12
+
+        if matched_private and not has_admin_context:
+            return (
+                True,
+                "사인간 권리관계·민사 분쟁 성격으로 보여 민원 처리에 관한 법률상 행정기관 처리 민원에 해당하지 않을 수 있습니다.",
+                matched_private,
+            )
+
+        if has_vague_only_signal:
+            return (
+                True,
+                "민원의 핵심 사실관계가 부족해 담당 부서를 특정하기 어렵습니다. 대상 기관, 발생 시점, 요청사항을 구체적으로 작성해 주세요.",
+                [],
+            )
+
+        if best_score <= 2:
+            return (
+                True,
+                "민원의 요지가 불분명하여 담당 부서 자동 추천이 어렵습니다. 대상 기관·쟁점·요청사항을 구체적으로 작성해 주세요.",
+                [],
+            )
+
+        return False, "", []
+
     def _intent_boost(self, dept_name: str, sub_name: str, text: str) -> int:
         score = 0
 
@@ -104,6 +177,9 @@ class ComplaintClassificationEngine:
         text = self._normalize_text(f"{title} {content}")
         scores = self._score_candidates(text)
         dept_name, sub_name, best_score = self._pick_best(scores)
+        is_non_actionable, non_actionable_reason, matched_private = self._check_non_actionable(text, best_score)
+        if is_non_actionable:
+            return self._build_non_actionable_result(non_actionable_reason, matched_private)
 
         dept_meta = self.rules[dept_name]
         sub_meta = dept_meta["sub_departments"][sub_name]

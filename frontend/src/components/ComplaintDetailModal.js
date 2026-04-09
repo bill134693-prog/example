@@ -6,6 +6,7 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
   const [activeAction, setActiveAction] = useState(null);
   const [actionData, setActionData] = useState({});
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [reassignSuggestions, setReassignSuggestions] = useState(null);
 
@@ -37,6 +38,25 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
   };
 
   const formatDate = (value) => (value ? new Date(value).toLocaleString('ko-KR') : '-');
+
+  const handleAnswerClick = async () => {
+    setActiveAction('answer');
+    if (actionData.response_content) return;
+
+    setAiLoading(true);
+    try {
+      const res = await complaintService.getAiAnswerSuggestion(complaint.id);
+      const suggestion = res?.data?.suggested_answer || '';
+      const basis = (res?.data?.basis || []).join('\n- ');
+      const withBasis = basis ? `${suggestion}\n\n[근거]\n- ${basis}` : suggestion;
+      setActionData((prev) => ({ ...prev, response_content: withBasis }));
+      setMessage({ type: 'success', text: 'AI 추천답변을 불러왔습니다. 필요시 수정 후 저장하세요.' });
+    } catch (error) {
+      setMessage({ type: 'error', text: error.response?.data?.error || error.message });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -80,7 +100,7 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
         {activeAction === null && (
           <div className="modal-footer">
             <div className="action-buttons">
-              <button className="action-btn answer-btn" onClick={() => setActiveAction('answer')}>답변</button>
+              <button className="action-btn answer-btn" onClick={handleAnswerClick}>답변</button>
               <button className="action-btn close-btn-action" onClick={() => executeAction(complaintService.closeComplaint, { handler_id: 'admin' }, '종결 처리 완료')}>종결</button>
               <button className="action-btn withdraw-btn" onClick={() => executeAction(complaintService.withdrawComplaint, { handler_id: 'admin' }, '취하 처리 완료')}>취하</button>
               <button className="action-btn transfer-btn" onClick={() => setActiveAction('transfer')}>이송</button>
@@ -92,6 +112,11 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
         {activeAction === 'answer' && (
           <div className="action-modal">
             <h4>민원 답변</h4>
+            <div className="action-buttons" style={{ marginBottom: 10 }}>
+              <button disabled={aiLoading || loading} onClick={handleAnswerClick}>
+                {aiLoading ? 'AI 작성중...' : 'AI 추천답변 생성'}
+              </button>
+            </div>
             <textarea rows="5" value={actionData.response_content || ''} onChange={(e) => setActionData({ ...actionData, response_content: e.target.value })} />
             <div className="action-buttons">
               <button disabled={loading} onClick={() => executeAction(complaintService.answerComplaint, { handler_id: 'admin', response_content: actionData.response_content || '' }, '답변 완료')}>저장</button>
