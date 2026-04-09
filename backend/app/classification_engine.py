@@ -256,7 +256,8 @@ class ComplaintClassificationEngine:
             return f"[{title}] 내용 없음"
 
         segments = [s.strip() for s in re.split(r"[.!?\n]|다\.", text) if s.strip()]
-        issue = segments[0] if segments else text[:90]
+        raw_issue = segments[0] if segments else text
+        issue = raw_issue[:80] + "..." if len(raw_issue) > 80 else raw_issue
 
         request_markers = ["요청", "처리", "검토", "확인", "조치", "단속", "회신", "답변", "바랍니다", "해주세요"]
         request = ""

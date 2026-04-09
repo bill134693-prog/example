@@ -167,7 +167,8 @@ export function summarizeComplaintContent(title, content) {
   const text = String(content || '').replace(/\s+/g, ' ').trim();
   if (!text) return `[${title}] 내용 없음`;
   const parts = text.split(/[.!?\n]|다\./).map((s) => s.trim()).filter(Boolean);
-  const issue = parts[0] || text.slice(0, 90);
+  const rawIssue = parts[0] || text;
+  const issue = rawIssue.length > 80 ? `${rawIssue.slice(0, 80)}...` : rawIssue;
   const marker = ['요청', '처리', '검토', '확인', '조치', '바랍니다', '해주세요'].find((m) => text.includes(m));
   let request = '';
   if (marker) {

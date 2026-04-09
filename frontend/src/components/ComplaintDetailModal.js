@@ -69,7 +69,39 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
       setReassignSuggestions(res.data);
       setActiveAction('reassign');
     } catch (error) {
-      setMessage({ type: 'error', text: error.response?.data?.error || error.message });
+      // Fallback: even if backend suggestion API fails, show local top-3 recommendations.
+      const localRecs = getLocalRecommendations(complaint.title, complaint.content, 3);
+      const suggestions = localRecs.map((rec, idx) => ({
+        rank: idx + 1,
+        department_name: rec.department,
+        sub_department_name: rec.sub_department,
+        confidence: rec.confidence?.overall || 0.5,
+        reason: rec.classification_basis?.reason || '로컬 규칙 기반 추천',
+      }));
+
+      let deptId = 1;
+      const available_departments = Object.entries(LEGAL_RULES).map(([deptName, deptMeta]) => {
+        const currentDeptId = deptId++;
+        let subId = 1;
+        return {
+          id: currentDeptId,
+          name: deptName,
+          sub_departments: Object.keys(deptMeta.subDepartments).map((subName) => ({
+            id: subId++,
+            name: subName,
+            keywords: '',
+          })),
+        };
+      });
+
+      setReassignSuggestions({
+        suggestions,
+        available_departments,
+        current_department: complaint.department || '-',
+        current_sub_department: complaint.sub_department || '-',
+      });
+      setActiveAction('reassign');
+      setMessage({ type: 'info', text: '재지정 추천 API 연결이 불안정하여 로컬 추천을 표시합니다.' });
     } finally {
       setLoading(false);
     }
@@ -94,13 +126,16 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
 
   const buildLocalAiAnswer = () => {
     const rec = getLocalRecommendation(complaint.title, complaint.content);
+    const complaintNo = complaint.complaint_id || '1AA-0000-000000';
+    const summary = (complaint.content || '').replace(/\s+/g, ' ').trim();
+    const shortSummary = summary.slice(0, 90) + (summary.length > 90 ? '...' : '');
     return (
-      "안녕하세요. 접수하신 민원에 대해 검토 결과를 안내드립니다.\n\n" +
-      `1. 민원 요지\n- ${complaint.title}\n- ${(complaint.content || '').slice(0, 180)}${(complaint.content || '').length > 180 ? '...' : ''}\n\n` +
-      `2. 검토 부서(추천)\n- ${rec.department} ${rec.sub_department}\n\n` +
-      "3. 처리 안내\n- 사실관계를 확인한 뒤 관련 기준에 따라 처리하겠습니다.\n" +
-      "- 소관이 다른 경우 관계기관 이송 또는 협조 요청 후 진행상황을 안내드리겠습니다.\n\n" +
-      "감사합니다."
+      `1. 안녕하십니까? 귀하께서 국민신문고를 통해 신청하신 민원(신청번호 ${complaintNo})에 대한 검토 결과를 다음과 같이 알려드립니다.\n\n` +
+      `2. 귀하께서 제출하신 민원의 내용은 "${shortSummary}"에 관한 것으로 이해(또는 판단) 됩니다.\n\n` +
+      "3. 귀하의 민원에 대한 검토 결과는 다음과 같습니다.\n" +
+      `   가. 본 건은 ${rec.department} ${rec.sub_department} 소관으로 우선 검토하였습니다.\n` +
+      "   나. 관련 기준에 따라 사실관계를 확인하고, 필요 시 이송·재지정 등 후속 조치를 진행하겠습니다.\n\n" +
+      "4. 답변 내용에 대한 추가 설명이 필요한 경우 소관 부서 담당자에게 연락주시면 친절히 안내해 드리도록 하겠습니다. 감사합니다."
     );
   };
 
@@ -330,6 +365,15 @@ export const ComplaintDetailModal = ({ complaint, onClose }) => {
                 ))
               )}
             </select>
+            {(reassignSuggestions?.suggestions || []).length > 0 && (
+              <div className="suggestion-item" style={{ marginTop: 8 }}>
+                {(reassignSuggestions.suggestions || []).map((s) => (
+                  <div key={`${s.rank}-${s.department_name}-${s.sub_department_name}`}>
+                    {s.rank}순위: {s.department_name} &gt; {s.sub_department_name} ({(Number(s.confidence || 0) * 100).toFixed(1)}%) - {s.reason}
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="action-buttons">
               <button
                 disabled={loading || !actionData.target_department_id || !actionData.target_sub_department_id}

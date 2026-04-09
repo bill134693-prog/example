@@ -13,20 +13,20 @@ GUIDELINE_SUMMARY = [
 
 
 def _build_non_actionable_reply(title: str, content: str) -> str:
+    summary = (content or "").strip().replace("\n", " ")
+    summary = summary[:90] + ("..." if len(summary) > 90 else "")
     return (
-        "안녕하세요. 접수하신 내용에 대해 확인한 결과, 현재 작성 내용만으로는 "
-        "행정기관이 처리하는 민원(민원 처리에 관한 법률 제2조)에 해당하는지 판단이 어렵습니다.\n\n"
-        "특히 사인 간 분쟁 또는 사실관계가 불명확한 경우에는 행정민원으로 직접 처리하기 어려울 수 있습니다.\n"
-        "아래 사항을 보완해 주시면 소관기관 검토에 도움이 됩니다.\n"
-        "1. 대상 기관(예: ○○시청, ○○부처, ○○공공기관)\n"
-        "2. 발생 시점/장소와 경위\n"
-        "3. 행정기관에 요청하는 구체적 조치\n\n"
-        "필요시 법률구조공단, 대한법률구조공단 상담 또는 관할 기관 민원창구를 통해 "
-        "권리구제 절차를 안내받으시기 바랍니다."
+        "1. 안녕하십니까? 귀하께서 국민신문고를 통해 신청하신 민원에 대한 검토 결과를 다음과 같이 알려드립니다.\n\n"
+        f"2. 귀하께서 제출하신 민원의 내용은 \"{summary}\"에 관한 것으로 이해됩니다.\n\n"
+        "3. 귀하의 민원에 대한 검토 결과는 다음과 같습니다.\n"
+        "   가. 현재 작성된 내용만으로는 행정기관이 처리하는 민원(민원 처리에 관한 법률 제2조) 해당 여부 판단이 어렵습니다.\n"
+        "   나. 사인 간 분쟁 또는 사실관계 불명확 사안은 행정민원으로 직접 처리가 제한될 수 있어, 대상 기관·발생 시점·요청사항 보완이 필요합니다.\n\n"
+        "4. 답변 내용에 대한 추가 설명이 필요한 경우 소관 부서 담당자에게 연락주시면 안내해 드리겠습니다. 감사합니다."
     )
 
 
 def generate_ai_answer_suggestion(complaint: Dict) -> Dict:
+    complaint_id = complaint.get("complaint_id") or "1AA-0000-000000"
     title = (complaint.get("title") or "").strip()
     content = (complaint.get("content") or "").strip()
     department = complaint.get("department") or "-"
@@ -45,19 +45,15 @@ def generate_ai_answer_suggestion(complaint: Dict) -> Dict:
             "guidelines_applied": GUIDELINE_SUMMARY,
         }
 
-    summary = content[:220] + ("..." if len(content) > 220 else "")
+    summary = content.replace("\n", " ").strip()
+    summary = summary[:90] + ("..." if len(summary) > 90 else "")
     suggestion = (
-        "안녕하세요. 귀하께서 접수하신 민원에 대해 검토한 결과를 안내드립니다.\n\n"
-        f"1. 민원 요지\n- {title}\n- {summary}\n\n"
-        f"2. 검토 부서\n- {department} {sub_department}\n\n"
-        "3. 검토 결과 및 조치 계획\n"
-        "- 관련 법령 및 내부 처리기준에 따라 사실관계를 확인하고 있습니다.\n"
-        "- 추가 확인이 필요한 사항은 별도 연락드리며, 확인 즉시 처리결과를 안내드리겠습니다.\n"
-        "- 소관이 일부 상이할 경우 관계 기관으로 이송 또는 협조 요청 후 진행상황을 통지하겠습니다.\n\n"
-        "4. 안내사항\n"
-        "- 개인정보 보호를 위해 민감한 정보는 답변서에 기재하지 않았습니다.\n"
-        "- 본 답변은 현재 확인된 범위 기준이며, 추가 자료에 따라 보완될 수 있습니다.\n\n"
-        "감사합니다."
+        f"1. 안녕하십니까? 귀하께서 국민신문고를 통해 신청하신 민원(신청번호 {complaint_id})에 대한 검토 결과를 다음과 같이 알려드립니다.\n\n"
+        f"2. 귀하께서 제출하신 민원의 내용은 \"{summary}\"에 관한 것으로 이해(또는 판단) 됩니다.\n\n"
+        "3. 귀하의 민원에 대한 검토 결과는 다음과 같습니다.\n"
+        f"   가. 본 건은 {department} {sub_department} 소관으로 검토하였습니다.\n"
+        "   나. 관련 법령 및 내부 처리기준에 따라 사실관계를 확인 중이며, 확인 결과에 따라 필요한 조치를 진행하겠습니다.\n\n"
+        "4. 답변 내용에 대한 추가 설명이 필요한 경우 소관 부서 담당자에게 연락주시면 친절히 안내해 드리도록 하겠습니다. 감사합니다."
     )
 
     return {
@@ -69,4 +65,3 @@ def generate_ai_answer_suggestion(complaint: Dict) -> Dict:
         ],
         "guidelines_applied": GUIDELINE_SUMMARY,
     }
-

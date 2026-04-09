@@ -384,6 +384,7 @@ def get_ai_answer_suggestion(complaint_id: int):
 
     payload = {
         "id": complaint.id,
+        "complaint_id": complaint.complaint_id,
         "title": complaint.title,
         "content": complaint.content,
         "department": complaint.department.name if complaint.department else None,
