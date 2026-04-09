@@ -1,9 +1,24 @@
 .app-header {
-    background: linear-gradient(135deg, #2e7d32 0%, #4CAF50 100%);
+    background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0)) no-repeat,
+        linear-gradient(135deg, #0e56ae 0%, #1f75d8 55%, #2a86e6 100%);
     color: white;
-    padding: 40px 20px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    margin-bottom: 30px;
+    padding: 34px 20px;
+    box-shadow: 0 10px 24px rgba(16, 75, 145, 0.28);
+    margin-bottom: 22px;
+    position: relative;
+    overflow: hidden;
+}
+
+.app-header::after {
+    content: '';
+    position: absolute;
+    right: -40px;
+    top: -40px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
 }
 
 .header-container {
@@ -13,12 +28,13 @@
 
 .header-content h1 {
     margin: 0 0 10px 0;
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
 }
 
 .header-content p {
     margin: 0;
-    font-size: 16px;
-    opacity: 0.9;
+    font-size: 15px;
+    opacity: 0.95;
 }

@@ -1,50 +1,86 @@
-.dashboard-page .container {
-  max-width: 1200px;
+﻿.dashboard-page .container {
+  max-width: 1220px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 0 20px 28px;
 }
 
 .filter-section {
   display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: 14px;
+  margin-bottom: 16px;
+  background: #fff;
+  border: 1px solid #dce6f4;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(24, 59, 105, 0.08);
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .filter-group label {
-  font-weight: 600;
+  font-weight: 700;
+  color: #244670;
+  font-size: 13px;
 }
 
 .filter-group select {
-  min-width: 180px;
-  padding: 8px;
-  border: 1px solid #d0d5dd;
+  min-width: 200px;
+  padding: 9px 12px;
+  border: 1px solid #cfdcf0;
   border-radius: 8px;
+  color: #1d3c66;
+  background: #fafdff;
 }
 
 .complaints-section {
   background: #fff;
-  border: 1px solid #e6e8ec;
+  border: 1px solid #dce6f4;
   border-radius: 12px;
-  padding: 16px;
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(24, 59, 105, 0.08);
+  overflow-x: auto;
+}
+
+.complaints-section h2 {
+  margin: 4px 0 14px;
+  color: #15396b;
+  font-size: 21px;
 }
 
 .complaints-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 14px;
 }
 
-.complaints-table th,
+.complaints-table thead th {
+  background: #f0f6ff;
+  color: #244670;
+  border-top: 1px solid #d9e7fb;
+  border-bottom: 1px solid #d9e7fb;
+  padding: 10px;
+}
+
+.complaints-table thead th:first-child {
+  border-left: 1px solid #d9e7fb;
+  border-top-left-radius: 8px;
+}
+
+.complaints-table thead th:last-child {
+  border-right: 1px solid #d9e7fb;
+  border-top-right-radius: 8px;
+}
+
 .complaints-table td {
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid #edf2fa;
   padding: 10px;
   text-align: left;
+  color: #2a3f5f;
 }
 
 .target-row {
@@ -53,7 +89,8 @@
 
 .title-cell {
   cursor: pointer;
-  color: #0b63ce;
+  color: #0f5bb6;
+  font-weight: 600;
 }
 
 .title-cell:hover {
@@ -66,7 +103,17 @@
   border-radius: 999px;
   font-size: 12px;
   background: #f1f3f5;
+  font-weight: 700;
 }
+
+.status-badge.status-접수 { background: #e8f2ff; color: #1856a9; }
+.status-badge.status-분류완료 { background: #e9f8f3; color: #1a825c; }
+.status-badge.status-처리중 { background: #fff5e5; color: #9a6400; }
+.status-badge.status-답변완료 { background: #e7f0ff; color: #1f4f96; }
+.status-badge.status-종결 { background: #edf1f7; color: #465a79; }
+.status-badge.status-취하 { background: #ffeef0; color: #b93a4a; }
+.status-badge.status-이송 { background: #f1ecff; color: #5a3fa1; }
+.status-badge.status-반복민원알림 { background: #ffe7cc; color: #a15d00; }
 
 .pagination {
   display: flex;
@@ -78,9 +125,11 @@
 
 .pagination button {
   padding: 8px 12px;
-  border: 1px solid #d0d5dd;
+  border: 1px solid #c9d9ef;
   border-radius: 8px;
-  background: #fff;
+  background: #f7fbff;
+  color: #20466f;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -96,7 +145,7 @@
   color: #667085;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 980px) {
   .filter-section {
     flex-direction: column;
   }

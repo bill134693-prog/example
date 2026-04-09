@@ -1,6 +1,6 @@
-.home-page {
+﻿.home-page {
     min-height: 100vh;
-    background: #f5f5f5;
+    background: transparent;
 }
 
 .container {
@@ -10,155 +10,108 @@
 }
 
 .message-info {
-    background: #d1ecf1;
-    border: 1px solid #bee5eb;
-    color: #0c5460;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    background: #e8f1ff;
+    border: 1px solid #c7dbff;
+    color: #1f4c8f;
 }
 
 .form-section,
 .recommendation-section {
-    margin-bottom: 30px;
-    background: white;
-    padding: 30px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 24px;
+    background: #fff;
+    padding: 26px;
+    border-radius: 14px;
+    border: 1px solid #dce6f4;
+    box-shadow: 0 8px 20px rgba(24, 59, 105, 0.08);
 }
 
 .form-section h2,
 .recommendation-section h2 {
-    margin-bottom: 10px;
-    color: #333;
+    margin-bottom: 6px;
+    color: #15396b;
     font-size: 24px;
+    letter-spacing: -0.2px;
 }
 
 .step-description {
-    color: #666;
+    color: #4b5c77;
     font-size: 14px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     line-height: 1.5;
 }
 
 .recommendation-box {
-    background: #f9f9f9;
-    border: 2px solid #4CAF50;
-    border-radius: 8px;
-    padding: 25px;
-    margin: 20px 0;
-}
-
-.recommendation-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #ddd;
-}
-
-.recommendation-header h3 {
-    margin: 0;
-    color: #333;
-    font-size: 18px;
-}
-
-.confidence-badge {
-    background: #4CAF50;
-    color: white;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.recommendation-content {
-    margin-bottom: 25px;
+    background: linear-gradient(180deg, #f7fbff, #f2f7ff);
+    border: 1px solid #bcd7ff;
+    border-radius: 12px;
+    padding: 18px;
+    margin: 14px 0;
 }
 
 .recommendation-item {
-    display: flex;
-    align-items: center;
-    padding: 12px 0;
-    font-size: 16px;
-}
-
-.recommendation-item label {
-    min-width: 120px;
-    color: #666;
-    font-weight: 600;
+    background: white;
+    border: 1px solid #d9e7fb;
 }
 
 .recommendation-value {
-    color: #333;
-    font-size: 16px;
+    color: #2a3a57;
+    font-size: 15px;
     font-weight: 500;
     padding: 8px 12px;
-    background: white;
-    border-radius: 4px;
-    border-left: 3px solid #4CAF50;
-    margin-left: 10px;
+    background: #f8fbff;
+    border-radius: 6px;
+    border-left: 3px solid #1b6ac9;
+    margin-top: 6px;
 }
 
 .recommendation-buttons {
     display: flex;
     gap: 10px;
-    margin-top: 20px;
+    margin-top: 14px;
 }
 
 .btn {
     flex: 1;
     padding: 12px 20px;
     border: none;
-    border-radius: 4px;
-    font-size: 16px;
-    font-weight: 600;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .btn-confirm {
-    background-color: #4CAF50;
+    background: linear-gradient(135deg, #1b6ac9, #2d83e6);
     color: white;
+    box-shadow: 0 6px 14px rgba(26, 103, 197, 0.28);
 }
 
 .btn-confirm:hover:not(:disabled) {
-    background-color: #45a049;
+    background: linear-gradient(135deg, #1459ab, #226ec7);
 }
 
 .btn-cancel {
-    background-color: #f44336;
-    color: white;
+    background-color: #edf3fb;
+    color: #15396b;
+    border: 1px solid #cad9ef;
 }
 
 .btn-cancel:hover:not(:disabled) {
-    background-color: #da190b;
+    background-color: #dce9fa;
 }
 
 .btn:disabled {
-    opacity: 0.6;
+    opacity: 0.55;
     cursor: not-allowed;
 }
 
-.result-section {
-    margin-top: 30px;
-}
-
 .alert-section {
-    margin-top: 30px;
+    margin-top: 20px;
 }
 
 .alert-section h2 {
-    color: #f57c00;
-    margin-bottom: 15px;
+    color: #1f4c8f;
+    margin-bottom: 10px;
     font-size: 20px;
 }

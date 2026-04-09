@@ -6,6 +6,7 @@ import { complaintService, departmentService } from '../services/api';
 import './DashboardPage.css';
 
 const LOCAL_FALLBACK_COMPLAINTS_KEY = 'local_fallback_complaints';
+const REMOVED_TITLES = new Set(['고용노동부 유희승 퇴직연금', '고용노동부 유희승']);
 const PAGE_SIZE = 10;
 
 export const DashboardPage = () => {
@@ -34,12 +35,15 @@ export const DashboardPage = () => {
         if (statusFilter) params.status = statusFilter;
 
         const res = await complaintService.listComplaints(params);
-        const serverComplaints = res.data.complaints || [];
+        const serverComplaints = (res.data.complaints || []).filter((c) => !REMOVED_TITLES.has(c.title || ''));
         let localComplaints = [];
         try {
           const raw = window.localStorage.getItem(LOCAL_FALLBACK_COMPLAINTS_KEY);
           const parsed = raw ? JSON.parse(raw) : [];
-          localComplaints = Array.isArray(parsed) ? parsed : [];
+          localComplaints = Array.isArray(parsed) ? parsed.filter((c) => !REMOVED_TITLES.has(c.title || '')) : [];
+          if (Array.isArray(parsed) && parsed.length !== localComplaints.length) {
+            window.localStorage.setItem(LOCAL_FALLBACK_COMPLAINTS_KEY, JSON.stringify(localComplaints));
+          }
         } catch {
           localComplaints = [];
         }
@@ -101,7 +105,17 @@ export const DashboardPage = () => {
   const formatDate = (value) => {
     if (!value) return '-';
     const date = new Date(value);
-    return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+    return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const formatDueDate = (dueDate, remainingDays) => {
+    if (dueDate) {
+      const dateText = formatDate(dueDate);
+      if (remainingDays === null || remainingDays === undefined) return dateText;
+      return `${dateText} (D${remainingDays >= 0 ? `-${remainingDays}` : `+${Math.abs(remainingDays)}`})`;
+    }
+    if (remainingDays === null || remainingDays === undefined) return '-';
+    return `D-${remainingDays}`;
   };
 
   const statusOptions = ['접수', '분류완료', '처리중', '답변완료', '종결', '취하', '이송', '반복민원알림'];
@@ -148,19 +162,19 @@ export const DashboardPage = () => {
               <table className="complaints-table">
                 <thead>
                   <tr>
-                    <th>요청일</th>
-                    <th>접수일</th>
+                    <th>신청번호</th>
+                    <th>신청일</th>
                     <th>제목</th>
-                    <th>요청자</th>
-                    <th>남은일</th>
+                    <th>민원인</th>
+                    <th>처리기한</th>
                     <th>상태</th>
-                    <th>반복</th>
+                    <th>반복 민원 여부</th>
                   </tr>
                 </thead>
                 <tbody>
                   {complaints.map((c) => (
                     <tr key={c.id || c.complaint_id} className={targetComplaintId === c.id ? 'target-row' : ''}>
-                      <td>{formatDate(c.created_at)}</td>
+                      <td>{c.complaint_id || '-'}</td>
                       <td>{formatDate(c.received_date)}</td>
                       <td
                         className="title-cell"
@@ -175,11 +189,11 @@ export const DashboardPage = () => {
                         {c.title}
                       </td>
                       <td>{c.citizen_name}</td>
-                      <td>{c.remaining_days === null ? '-' : `${c.remaining_days}일`}</td>
+                      <td>{formatDueDate(c.due_date, c.remaining_days)}</td>
                       <td>
                         <span className={`status-badge status-${c.status}`}>{c.status}</span>
                       </td>
-                      <td>{c.is_duplicate ? `예 (${c.repeat_count || 0})` : '-'}</td>
+                      <td>{c.is_duplicate ? `예 (${c.repeat_count || 0}건)` : '아니오'}</td>
                     </tr>
                   ))}
                 </tbody>

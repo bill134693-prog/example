@@ -71,6 +71,28 @@ def _sync_department_seed():
         db.session.rollback()
 
 
+def _cleanup_removed_complaints():
+    """Delete explicitly requested test complaints from persisted data."""
+    titles_to_delete = {"고용노동부 유희승 퇴직연금", "고용노동부 유희승"}
+    try:
+        from app.models import Classification, Complaint, DuplicateAlert, ProcessingHistory
+
+        targets = Complaint.query.filter(Complaint.title.in_(titles_to_delete)).all()
+        if not targets:
+            return
+
+        target_ids = [c.id for c in targets]
+        Classification.query.filter(Classification.complaint_id.in_(target_ids)).delete(synchronize_session=False)
+        ProcessingHistory.query.filter(ProcessingHistory.complaint_id.in_(target_ids)).delete(synchronize_session=False)
+        DuplicateAlert.query.filter(
+            (DuplicateAlert.complaint_id.in_(target_ids)) | (DuplicateAlert.similar_complaint_id.in_(target_ids))
+        ).delete(synchronize_session=False)
+        Complaint.query.filter(Complaint.id.in_(target_ids)).delete(synchronize_session=False)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
 def create_app(config_name=None):
     """Flask ?좏뵆由ъ??댁뀡 ?⑺넗由?""
     if config_name is None:
@@ -102,5 +124,6 @@ def create_app(config_name=None):
         db.create_all()
         _ensure_complaint_columns()
         _sync_department_seed()
+        _cleanup_removed_complaints()
     
     return app
