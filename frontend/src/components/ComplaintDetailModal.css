@@ -517,3 +517,61 @@
     color: #d32f2f;
     font-weight: 600;
 }
+
+.step-select-group {
+    margin-bottom: 10px;
+}
+
+.step-select-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #555;
+    font-weight: 600;
+}
+
+.suggestion-list {
+    margin-bottom: 12px;
+}
+
+.suggestion-line {
+    padding: 8px 10px;
+    border-radius: 4px;
+    background: #eef7ef;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.suggestion-row {
+    background: #f5f9f5;
+    border: 1px solid #dcebdd;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+}
+
+.suggestion-main {
+    font-weight: 600;
+    color: #1f5134;
+    margin-bottom: 4px;
+}
+
+.suggestion-reason {
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.suggestion-pick-btn {
+    padding: 6px 10px;
+    border: 1px solid #2f9e44;
+    background: #2f9e44;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.suggestion-pick-btn:hover {
+    background: #277f38;
+}

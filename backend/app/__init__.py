@@ -24,6 +24,53 @@ def _ensure_complaint_columns():
         # Non-fatal in environments where migration isn't required.
         pass
 
+
+def _sync_department_seed():
+    """Synchronize department/sub-department seed data without destructive reset."""
+    try:
+        from app.legal_basis_data import LEGAL_CLASSIFICATION_RULES
+        from app.models import Department, SubDepartment
+
+        existing_by_code = {d.code: d for d in Department.query.all()}
+
+        for dept_name, dept_meta in LEGAL_CLASSIFICATION_RULES.items():
+            dept = existing_by_code.get(dept_meta["code"])
+            if not dept:
+                dept = Department(
+                    name=dept_name,
+                    code=dept_meta["code"],
+                    description=dept_meta.get("legal_reference", ""),
+                )
+                db.session.add(dept)
+                db.session.flush()
+            else:
+                dept.name = dept_name
+                dept.description = dept_meta.get("legal_reference", "")
+
+            existing_subs = {s.code: s for s in SubDepartment.query.filter_by(department_id=dept.id).all()}
+            for sub_name, sub_meta in dept_meta.get("sub_departments", {}).items():
+                sub = existing_subs.get(sub_meta["code"])
+                keywords = ", ".join(sub_meta.get("keywords", []))
+                if not sub:
+                    db.session.add(
+                        SubDepartment(
+                            department_id=dept.id,
+                            name=sub_name,
+                            code=sub_meta["code"],
+                            keywords=keywords,
+                            description=sub_meta.get("reason", ""),
+                        )
+                    )
+                else:
+                    sub.name = sub_name
+                    sub.keywords = keywords
+                    sub.description = sub_meta.get("reason", "")
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
 def create_app(config_name=None):
     """Flask ?좏뵆由ъ??댁뀡 ?⑺넗由?""
     if config_name is None:
@@ -54,5 +101,6 @@ def create_app(config_name=None):
     with app.app_context():
         db.create_all()
         _ensure_complaint_columns()
+        _sync_department_seed()
     
     return app

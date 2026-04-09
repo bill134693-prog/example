@@ -47,8 +47,8 @@ export const HomePage = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        // 깨진 샘플 데이터가 남아있을 수 있어 동기화(업서트) 수행
-        await departmentService.initSampleData(true);
+        // 비파괴 업서트 동기화(기존 부처/부서 FK를 유지)
+        await departmentService.initSampleData(false);
       } catch {
         // ignore
       }

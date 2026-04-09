@@ -595,24 +595,67 @@ def transfer_complaint(complaint_id: int):
         return jsonify({"success": True}), 200
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
-        return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
+        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
 
     data = request.get_json(silent=True) or {}
-    if not data.get("handler_id") or not data.get("target_department"):
-        return jsonify({"error": "handler_id? target_department媛 ?꾩슂?⑸땲??"}), 400
+    handler_id = data.get("handler_id")
+    target_department_id = data.get("target_department_id")
+    target_sub_department_id = data.get("target_sub_department_id")
+    target_department = (data.get("target_department") or "").strip()
+    target_sub_department = (data.get("target_sub_department") or "").strip()
+
+    if not handler_id:
+        return jsonify({"error": "handler_id가 필요합니다."}), 400
 
     status_before = complaint.status
     complaint.status = ComplaintStatus.TRANSFERRED.value
+    resolved_department = target_department
+    resolved_sub_department = target_sub_department
+
+    if target_department_id:
+        target_dept = Department.query.get(target_department_id)
+        if not target_dept:
+            return jsonify({"error": "대상 부처를 찾을 수 없습니다."}), 404
+
+        complaint.department_id = target_dept.id
+        resolved_department = target_dept.name
+
+        if target_sub_department_id:
+            target_sub = SubDepartment.query.get(target_sub_department_id)
+            if not target_sub:
+                return jsonify({"error": "대상 부서를 찾을 수 없습니다."}), 404
+            if target_sub.department_id != target_dept.id:
+                return jsonify({"error": "선택한 부서가 대상 부처에 속하지 않습니다."}), 400
+            complaint.sub_department_id = target_sub.id
+            resolved_sub_department = target_sub.name
+    elif not target_department:
+        return jsonify({"error": "target_department 또는 target_department_id가 필요합니다."}), 400
+
+    action_description = (
+        f"{resolved_department} > {resolved_sub_department}로 이송"
+        if resolved_sub_department
+        else f"{resolved_department}로 이송"
+    )
 
     _add_processing_history(
         complaint,
-        "?댁넚",
-        data["handler_id"],
-        f"{data['target_department']}濡??댁넚",
+        "이송",
+        handler_id,
+        action_description,
         status_before,
     )
     db.session.commit()
-    return jsonify({"success": True, "status": complaint.status, "transferred_to": data["target_department"]}), 200
+    return (
+        jsonify(
+            {
+                "success": True,
+                "status": complaint.status,
+                "transferred_to": resolved_department,
+                "transferred_sub_department": resolved_sub_department or None,
+            }
+        ),
+        200,
+    )
 
 
 @bp.route("/<int:complaint_id>/reassign", methods=["PUT", "POST", "OPTIONS"])
@@ -622,27 +665,30 @@ def reassign_complaint(complaint_id: int):
         return jsonify({"success": True}), 200
     complaint = Complaint.query.get(complaint_id)
     if not complaint:
-        return jsonify({"error": "誘쇱썝??李얠쓣 ???놁뒿?덈떎."}), 404
+        return jsonify({"error": "민원을 찾을 수 없습니다."}), 404
 
     data = request.get_json(silent=True) or {}
     required = ["handler_id", "target_department_id", "target_sub_department_id"]
     if not all(data.get(f) for f in required):
-        return jsonify({"error": "?꾩닔 ?꾨뱶 ?꾨씫"}), 400
+        return jsonify({"error": "필수 필드 누락"}), 400
 
     target_dept = Department.query.get(data["target_department_id"])
     target_sub_dept = SubDepartment.query.get(data["target_sub_department_id"])
     if not target_dept or not target_sub_dept:
-        return jsonify({"error": "???遺泥?遺?쒕? 李얠쓣 ???놁뒿?덈떎."}), 404
+        return jsonify({"error": "대상 부처/부서를 찾을 수 없습니다."}), 404
+    if target_sub_dept.department_id != target_dept.id:
+        return jsonify({"error": "선택한 부서가 대상 부처에 속하지 않습니다."}), 400
 
     status_before = complaint.status
     complaint.department_id = target_dept.id
     complaint.sub_department_id = target_sub_dept.id
+    complaint.status = ComplaintStatus.CLASSIFIED.value
 
     _add_processing_history(
         complaint,
-        "?ъ???,
+        "재지정",
         data["handler_id"],
-        f"{target_dept.name} > {target_sub_dept.name}濡??ъ???,
+        f"{target_dept.name} > {target_sub_dept.name}로 재지정",
         status_before,
     )
 
@@ -695,10 +741,10 @@ def get_reassign_suggestions(complaint_id: int):
             )
             rank += 1
 
-    all_depts = Department.query.all()
+    all_depts = Department.query.order_by(Department.name.asc()).all()
     available_departments = []
     for dept in all_depts:
-        sub_depts = SubDepartment.query.filter_by(department_id=dept.id).all()
+        sub_depts = SubDepartment.query.filter_by(department_id=dept.id).order_by(SubDepartment.name.asc()).all()
         available_departments.append(
             {
                 "id": dept.id,

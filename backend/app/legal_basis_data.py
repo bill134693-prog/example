@@ -1,22 +1,360 @@
-﻿"""법령(직제 시행규칙) 참고 기반 분류 규칙 데이터.
+"""법령(정부조직법/직제 시행규칙) 참고 기반 분류 규칙 데이터.
 
-참고 법령(국가법령정보센터):
-- 고용노동부와 그 소속기관 직제 시행규칙
-- 환경부와 그 소속기관 직제 시행규칙
-- 국토교통부와 그 소속기관 직제 시행규칙
-- 보건복지부와 그 소속기관 직제 시행규칙
-- 교육부와 그 소속기관 직제 시행규칙
-- 경찰청과 그 소속기관 직제 시행규칙
-- 지방자치단체 행정기구 설치 조례 및 시행규칙
+참고 기준:
+- 정부조직법(중앙행정기관 체계)
+- 각 중앙행정기관 직제 및 직제 시행규칙
+- 지방자치단체 행정기구 설치 조례/시행규칙(광역자치단체 기준)
 """
 
-LEGAL_CLASSIFICATION_RULES = {
+from __future__ import annotations
+
+
+CENTRAL_CLASSIFICATION_RULES = {
+    "기획재정부": {
+        "code": "MOEF",
+        "category": "central",
+        "aliases": ["기재부"],
+        "legal_reference": "기획재정부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["예산", "세금", "세제", "재정", "물가"],
+        "sub_departments": {
+            "세제실 조세정책과": {
+                "code": "TAX",
+                "keywords": ["소득세", "법인세", "부가가치세", "세액공제", "세제개편", "조세"],
+                "reason": "조세제도 기획·운영 및 세법 정책 총괄",
+            },
+            "재정관리국 재정관리과": {
+                "code": "FISCAL",
+                "keywords": ["국가채무", "재정집행", "국고", "재정수지", "예산집행"],
+                "reason": "국가재정 운용 및 재정관리 정책",
+            },
+            "경제정책국 경제분석과": {
+                "code": "ECO",
+                "keywords": ["경기", "경제전망", "물가상승", "생활물가", "경제정책"],
+                "reason": "거시경제 동향 분석 및 경제정책 지원",
+            },
+        },
+    },
+    "교육부": {
+        "code": "MOE",
+        "category": "central",
+        "aliases": [],
+        "legal_reference": "교육부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["학교", "교원", "대학", "학생", "교육"],
+        "sub_departments": {
+            "학교교수학습혁신과": {
+                "code": "SCH",
+                "keywords": ["학교", "수업", "교실", "학습", "학사", "교원"],
+                "reason": "초중등 학교 운영 및 교수학습 정책",
+            },
+            "대학규제혁신과": {
+                "code": "UNI",
+                "keywords": ["대학", "등록금", "학자금", "휴학", "편입", "학사행정"],
+                "reason": "대학 제도 및 규제개선 정책",
+            },
+            "특수교육정책과": {
+                "code": "SPEC",
+                "keywords": ["특수교육", "장애학생", "통합교육", "특수학급", "개별화교육"],
+                "reason": "특수교육 지원 및 정책 총괄",
+            },
+        },
+    },
+    "과학기술정보통신부": {
+        "code": "MSIT",
+        "category": "central",
+        "aliases": ["과기정통부"],
+        "legal_reference": "과학기술정보통신부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["통신", "인터넷", "데이터", "인공지능", "연구개발"],
+        "sub_departments": {
+            "정보통신정책관 통신정책기획과": {
+                "code": "ICT",
+                "keywords": ["통신요금", "통신사", "번호이동", "인터넷 품질", "5g", "통신장애"],
+                "reason": "통신정책 및 이용자 보호 제도 기획",
+            },
+            "인공지능기반정책관 인공지능정책과": {
+                "code": "AI",
+                "keywords": ["인공지능", "ai", "데이터", "알고리즘", "디지털전환"],
+                "reason": "AI 산업·기반 정책 및 거버넌스",
+            },
+            "연구개발정책실 연구성과확산촉진과": {
+                "code": "RND",
+                "keywords": ["국가연구개발", "연구비", "기술이전", "성과확산", "국책과제"],
+                "reason": "국가 R&D 성과관리·확산 지원",
+            },
+        },
+    },
+    "외교부": {
+        "code": "MOFA",
+        "category": "central",
+        "aliases": [],
+        "legal_reference": "외교부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["여권", "재외국민", "비자", "영사"],
+        "sub_departments": {
+            "영사안전국 영사서비스과": {
+                "code": "CONSUL",
+                "keywords": ["영사", "재외국민", "해외사고", "여권", "해외안전"],
+                "reason": "영사민원 서비스 및 재외국민 보호",
+            },
+            "재외동포정책국 재외동포정책과": {
+                "code": "OVERSEA",
+                "keywords": ["재외동포", "동포", "국적", "해외체류", "동포지원"],
+                "reason": "재외동포 정책 및 지원업무",
+            },
+            "조약국 조약과": {
+                "code": "TREATY",
+                "keywords": ["국제협약", "조약", "국제법", "외교협정"],
+                "reason": "조약 체결 및 국제법 검토",
+            },
+        },
+    },
+    "통일부": {
+        "code": "MOU",
+        "category": "central",
+        "aliases": [],
+        "legal_reference": "통일부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["남북", "이산가족", "북한", "통일"],
+        "sub_departments": {
+            "정책기획관 정책총괄과": {
+                "code": "UNI_POLICY",
+                "keywords": ["통일정책", "남북관계", "대북정책", "남북협력"],
+                "reason": "통일·남북관계 정책 총괄",
+            },
+            "인도협력국 인도지원과": {
+                "code": "HUMAN",
+                "keywords": ["이산가족", "인도지원", "대북지원", "인도적 지원"],
+                "reason": "남북 인도협력 및 지원정책",
+            },
+            "정착지원과": {
+                "code": "SETTLE",
+                "keywords": ["북한이탈주민", "정착지원", "하나원", "탈북민"],
+                "reason": "북한이탈주민 정착지원 정책",
+            },
+        },
+    },
+    "법무부": {
+        "code": "MOJ",
+        "category": "central",
+        "aliases": [],
+        "legal_reference": "법무부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["출입국", "교정", "범죄", "법률"],
+        "sub_departments": {
+            "출입국정책단 체류관리과": {
+                "code": "IMM",
+                "keywords": ["비자", "체류자격", "외국인등록", "출입국", "국적"],
+                "reason": "출입국·체류 제도 운영",
+            },
+            "교정정책단 교정기획과": {
+                "code": "CORR",
+                "keywords": ["교정", "수용", "교도소", "가석방"],
+                "reason": "교정행정 정책 총괄",
+            },
+            "범죄예방정책국 보호관찰과": {
+                "code": "PROB",
+                "keywords": ["보호관찰", "사회봉사", "범죄예방", "소년보호"],
+                "reason": "보호관찰 및 범죄예방 정책",
+            },
+        },
+    },
+    "국방부": {
+        "code": "MND",
+        "category": "central",
+        "aliases": [],
+        "legal_reference": "국방부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["병역", "군", "장병", "국방"],
+        "sub_departments": {
+            "군인복지과": {
+                "code": "WEL",
+                "keywords": ["군인복지", "장병복지", "군 숙소", "급식", "복지시설"],
+                "reason": "장병 복지정책 및 복지사업",
+            },
+            "인력정책과": {
+                "code": "HR",
+                "keywords": ["군인사", "병사", "장교", "부사관", "복무"],
+                "reason": "군 인력 운영 및 복무정책",
+            },
+            "동원기획과": {
+                "code": "MOB",
+                "keywords": ["예비군", "동원", "훈련", "민방위"],
+                "reason": "예비전력·동원정책 기획",
+            },
+        },
+    },
+    "행정안전부": {
+        "code": "MOIS",
+        "category": "central",
+        "aliases": ["행안부"],
+        "legal_reference": "행정안전부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["주민등록", "지방자치", "재난", "행정"],
+        "sub_departments": {
+            "지방행정정책과": {
+                "code": "LOCAL_ADMIN",
+                "keywords": ["지방자치", "행정서비스", "민원제도", "정부24", "지방행정"],
+                "reason": "지방행정 제도 및 민원행정 정책",
+            },
+            "주민과": {
+                "code": "RESIDENT",
+                "keywords": ["주민등록", "등본", "초본", "전입신고", "주민번호"],
+                "reason": "주민등록 제도 및 주민민원 총괄",
+            },
+            "재난관리정책과": {
+                "code": "DISASTER",
+                "keywords": ["재난", "재해", "침수", "산불", "대피", "안전점검"],
+                "reason": "재난·안전관리 정책 총괄",
+            },
+        },
+    },
+    "국가보훈부": {
+        "code": "MPVA",
+        "category": "central",
+        "aliases": ["보훈부"],
+        "legal_reference": "국가보훈부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["보훈", "국가유공자", "보상"],
+        "sub_departments": {
+            "보훈보상정책과": {
+                "code": "VET_COMP",
+                "keywords": ["국가유공자", "보훈보상", "보상금", "상이", "유족"],
+                "reason": "보훈보상 및 지원제도 운영",
+            },
+            "생활안정과": {
+                "code": "VET_LIFE",
+                "keywords": ["생활지원", "의료지원", "교육지원", "대부", "취업지원"],
+                "reason": "보훈대상자 생활안정 지원",
+            },
+            "보훈예우정책과": {
+                "code": "VET_HONOR",
+                "keywords": ["보훈행사", "예우", "현충", "추모"],
+                "reason": "보훈예우 및 선양사업 정책",
+            },
+        },
+    },
+    "문화체육관광부": {
+        "code": "MCST",
+        "category": "central",
+        "aliases": ["문체부"],
+        "legal_reference": "문화체육관광부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["문화", "관광", "체육", "콘텐츠"],
+        "sub_departments": {
+            "문화정책과": {
+                "code": "CULT",
+                "keywords": ["문화예술", "문화시설", "공연", "전시", "문화지원"],
+                "reason": "문화정책 및 문화예술 지원",
+            },
+            "관광정책과": {
+                "code": "TOUR",
+                "keywords": ["관광", "관광지", "숙박", "여행", "관광불편"],
+                "reason": "관광정책 및 관광서비스 제도",
+            },
+            "체육정책과": {
+                "code": "SPORT",
+                "keywords": ["체육시설", "체육행사", "스포츠", "생활체육"],
+                "reason": "체육정책 및 생활체육 진흥",
+            },
+        },
+    },
+    "농림축산식품부": {
+        "code": "MAFRA",
+        "category": "central",
+        "aliases": ["농식품부"],
+        "legal_reference": "농림축산식품부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["농업", "축산", "식품", "농지"],
+        "sub_departments": {
+            "농업정책과": {
+                "code": "AGRI",
+                "keywords": ["농지", "농업보조", "직불금", "농업정책", "농민"],
+                "reason": "농업정책 및 농업인 지원",
+            },
+            "축산정책과": {
+                "code": "LIVESTOCK",
+                "keywords": ["축산", "가축", "사육", "축산업", "축산환경"],
+                "reason": "축산정책 및 축산업 관리",
+            },
+            "식품산업정책과": {
+                "code": "FOOD",
+                "keywords": ["식품산업", "원산지", "농식품", "식품유통"],
+                "reason": "농식품 산업 및 유통정책",
+            },
+        },
+    },
+    "산업통상자원부": {
+        "code": "MOTIE",
+        "category": "central",
+        "aliases": ["산업부"],
+        "legal_reference": "산업통상자원부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["산업", "수출", "에너지", "전기"],
+        "sub_departments": {
+            "산업정책과": {
+                "code": "INDUSTRY",
+                "keywords": ["산업정책", "제조업", "공장", "산단", "산업지원"],
+                "reason": "산업정책 기획 및 제조업 경쟁력 강화",
+            },
+            "무역정책과": {
+                "code": "TRADE",
+                "keywords": ["수출", "수입", "통상", "FTA", "무역"],
+                "reason": "무역·통상 정책 및 수출입 제도",
+            },
+            "전력정책과": {
+                "code": "POWER",
+                "keywords": ["전기요금", "전력", "전력수급", "전기사업", "한전"],
+                "reason": "전력산업 정책 및 전력시장 제도",
+            },
+        },
+    },
+    "보건복지부": {
+        "code": "MOHW",
+        "category": "central",
+        "aliases": ["복지부"],
+        "legal_reference": "보건복지부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["복지", "의료", "연금", "돌봄"],
+        "sub_departments": {
+            "의료정책과": {
+                "code": "HEALTH",
+                "keywords": ["병원", "진료", "응급실", "의료비", "약국", "의료서비스"],
+                "reason": "의료정책 및 의료서비스 제도",
+            },
+            "기초연금과": {
+                "code": "PENSION",
+                "keywords": ["기초연금", "연금수급", "노인연금", "수급자격"],
+                "reason": "기초연금 제도 운영",
+            },
+            "노인정책과": {
+                "code": "SENIOR",
+                "keywords": ["노인", "요양", "돌봄", "장기요양", "경로당"],
+                "reason": "노인복지 및 돌봄정책",
+            },
+        },
+    },
+    "환경부": {
+        "code": "ME",
+        "category": "central",
+        "aliases": [],
+        "legal_reference": "환경부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["환경", "대기", "수질", "폐기물"],
+        "sub_departments": {
+            "대기환경과": {
+                "code": "AIR",
+                "keywords": ["미세먼지", "악취", "매연", "대기오염", "소각"],
+                "reason": "대기환경 보전 및 배출관리",
+            },
+            "수질정책과": {
+                "code": "WATER",
+                "keywords": ["수질", "폐수", "하천오염", "방류", "지하수", "녹조"],
+                "reason": "수질보전 및 수생태 관리",
+            },
+            "자원순환정책과": {
+                "code": "RECYCLE",
+                "keywords": ["폐기물", "재활용", "분리배출", "생활쓰레기", "불법투기"],
+                "reason": "폐기물·자원순환 정책",
+            },
+        },
+    },
     "고용노동부": {
         "code": "MOEL",
+        "category": "central",
+        "aliases": ["고용부", "노동부"],
         "legal_reference": "고용노동부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["근로", "노동", "임금", "퇴직금", "고용"],
         "sub_departments": {
             "퇴직연금복지과": {
-                "code": "PRW",
+                "code": "RETIRE",
                 "keywords": [
                     "퇴직금",
                     "퇴직연금",
@@ -27,192 +365,348 @@ LEGAL_CLASSIFICATION_RULES = {
                     "주 15시간",
                     "360일",
                     "365일",
-                    "근속기간",
                 ],
                 "reason": "퇴직급여 보장 및 퇴직연금 제도 운영·해석 소관",
             },
             "고객상담센터 인터넷상담과": {
-                "code": "ICC",
-                "keywords": [
-                    "상담",
-                    "인터넷 상담",
-                    "온라인 상담",
-                    "문의",
-                    "질의",
-                    "답변 요청",
-                    "해석 문의",
-                    "가능한지",
-                ],
+                "code": "COUNSEL",
+                "keywords": ["상담", "인터넷 상담", "온라인 상담", "문의", "질의", "답변 요청", "해석 문의"],
                 "reason": "국민 대상 인터넷 노동행정 상담 및 민원응대 소관",
             },
-            "고용서비스기반과": {
-                "code": "ESB",
-                "keywords": ["고용서비스", "고용센터", "취업지원", "구직", "직업상담", "워크넷", "취업알선"],
-                "reason": "고용서비스 기반 구축 및 전달체계 운영 소관",
-            },
             "근로감독기획과": {
-                "code": "LIP",
-                "keywords": ["근로감독", "임금체불", "노동법", "근로기준법", "산재", "직장내괴롭힘"],
+                "code": "INSPECT",
+                "keywords": ["임금체불", "근로계약", "해고", "부당해고", "직장내괴롭힘", "최저임금"],
                 "reason": "근로감독 및 노동관계법 집행 소관",
             },
+            "고용서비스기반과": {
+                "code": "EMPLOY",
+                "keywords": ["고용센터", "취업지원", "구직", "직업상담", "워크넷"],
+                "reason": "고용서비스 기반 구축 및 전달체계 운영 소관",
+            },
             "감사담당관": {
-                "code": "AUDIT",
-                "keywords": ["감사", "징계", "복무", "근무태만", "비위", "공직기강", "주무관"],
+                "code": "MOEL_AUDIT",
+                "keywords": ["감사", "징계", "복무", "근무태만", "비위", "감찰"],
                 "reason": "공직자 복무·감사·징계 검토 소관",
             },
         },
     },
-    "행정안전부": {
-        "code": "MOIS",
-        "legal_reference": "행정안전부와 그 소속기관 직제 시행규칙",
+    "여성가족부": {
+        "code": "MOGEF",
+        "category": "central",
+        "aliases": ["여가부"],
+        "legal_reference": "여성가족부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["청소년", "가족", "성폭력", "가정폭력"],
         "sub_departments": {
-            "지방행정정책과": {
-                "code": "LAP",
-                "keywords": ["지방자치", "행정서비스", "민원제도", "정부24", "행정개선", "지방행정"],
-                "reason": "지방행정 제도 및 민원행정 정책 소관",
+            "가족정책과": {
+                "code": "FAMILY",
+                "keywords": ["가족", "한부모", "다문화", "가족지원"],
+                "reason": "가족정책 및 가족지원 서비스",
             },
-            "재난관리정책과": {
-                "code": "DMP",
-                "keywords": ["재난", "재해", "침수", "태풍", "화재", "지진", "대피", "안전점검"],
-                "reason": "재난 및 안전관리 총괄 정책 소관",
+            "권익지원과": {
+                "code": "RIGHTS",
+                "keywords": ["성폭력", "가정폭력", "디지털성범죄", "피해자 지원"],
+                "reason": "여성·청소년 권익보호 및 피해자 지원",
             },
-        },
-    },
-    "환경부": {
-        "code": "MOE",
-        "legal_reference": "환경부와 그 소속기관 직제 시행규칙",
-        "sub_departments": {
-            "대기환경과": {
-                "code": "AE",
-                "keywords": ["미세먼지", "악취", "대기", "배출", "공기", "소각", "매연"],
-                "reason": "대기환경·배출 관리 소관",
-            },
-            "수질환경과": {
-                "code": "WE",
-                "keywords": ["수질", "하천", "폐수", "오염수", "방류", "지하수", "녹조"],
-                "reason": "수질·수생태 관리 소관",
+            "청소년정책과": {
+                "code": "YOUTH",
+                "keywords": ["청소년", "청소년시설", "학교밖청소년", "청소년상담"],
+                "reason": "청소년 정책 및 보호사업",
             },
         },
     },
     "국토교통부": {
         "code": "MOLIT",
+        "category": "central",
+        "aliases": ["국토부"],
         "legal_reference": "국토교통부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["도로", "주택", "교통", "건축"],
         "sub_departments": {
             "도로과": {
-                "code": "RD",
-                "keywords": ["포트홀", "도로", "아스팔트", "보도블록", "가로등", "인도", "도로공사"],
-                "reason": "도로 유지보수·시설 관리 소관",
-            },
-            "대중교통과": {
-                "code": "PT",
-                "keywords": ["버스", "지하철", "배차", "정류장", "노선", "환승", "요금"],
-                "reason": "대중교통 운영·정책 소관",
+                "code": "ROAD",
+                "keywords": ["포트홀", "도로파손", "보도", "도로공사", "가로등"],
+                "reason": "도로시설 유지관리 및 도로정책",
             },
             "교통안전과": {
-                "code": "TS",
-                "keywords": ["신호등", "교통사고", "횡단보도", "과속", "교통안전", "단속카메라"],
-                "reason": "교통안전·사고예방 소관",
+                "code": "SAFE",
+                "keywords": ["교통사고", "횡단보도", "신호체계", "교통안전", "과속"],
+                "reason": "교통안전 정책 및 사고예방",
+            },
+            "주택정책과": {
+                "code": "HOUSE",
+                "keywords": ["주택", "임대", "분양", "전세", "월세", "주거"],
+                "reason": "주택정책 및 주거안정 제도",
             },
         },
     },
-    "보건복지부": {
-        "code": "MOHW",
-        "legal_reference": "보건복지부와 그 소속기관 직제 시행규칙",
+    "해양수산부": {
+        "code": "MOF",
+        "category": "central",
+        "aliases": ["해수부"],
+        "legal_reference": "해양수산부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["어업", "항만", "해양", "수산"],
         "sub_departments": {
-            "의료정책과": {
-                "code": "MP",
-                "keywords": ["병원", "진료", "응급실", "약국", "의료비", "의약품", "수술"],
-                "reason": "의료서비스·의약품 정책 소관",
+            "수산정책과": {
+                "code": "FISH",
+                "keywords": ["어업", "어선", "수산업", "어획", "수산물"],
+                "reason": "수산정책 및 어업제도 운영",
             },
-            "질병대응과": {
-                "code": "DR",
-                "keywords": ["감염병", "백신", "격리", "검사", "방역", "코로나", "역학"],
-                "reason": "감염병 대응·방역 소관",
+            "항만운영과": {
+                "code": "PORT",
+                "keywords": ["항만", "부두", "선박", "항만시설", "항만이용"],
+                "reason": "항만 운영 및 항만서비스 정책",
             },
-            "노인정책과": {
-                "code": "AP",
-                "keywords": ["노인", "요양", "기초연금", "돌봄", "장기요양", "경로당"],
-                "reason": "노인복지·돌봄 정책 소관",
+            "해양환경정책과": {
+                "code": "OCEAN_ENV",
+                "keywords": ["해양오염", "해양쓰레기", "해양환경", "연안"],
+                "reason": "해양환경 보전 및 관리",
             },
         },
     },
-    "경찰청": {
-        "code": "NPA",
-        "legal_reference": "경찰청과 그 소속기관 직제 시행규칙",
+    "중소벤처기업부": {
+        "code": "MSS",
+        "category": "central",
+        "aliases": ["중기부"],
+        "legal_reference": "중소벤처기업부와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["중소기업", "창업", "소상공인"],
         "sub_departments": {
-            "교통경찰과": {
-                "code": "TP",
-                "keywords": ["불법주정차", "교통법규", "음주운전", "면허", "신호위반", "중앙선"],
-                "reason": "교통단속·교통법규 집행 소관",
+            "소상공인정책과": {
+                "code": "SMALL",
+                "keywords": ["소상공인", "자영업", "점포", "상권", "폐업"],
+                "reason": "소상공인 지원 정책 총괄",
             },
-            "수사과": {
-                "code": "INV",
-                "keywords": ["폭행", "사기", "협박", "절도", "고소", "고발", "피해신고"],
-                "reason": "범죄 수사·사건 처리 소관",
+            "창업정책과": {
+                "code": "STARTUP",
+                "keywords": ["창업", "벤처", "스타트업", "창업지원", "투자"],
+                "reason": "창업·벤처 생태계 조성",
             },
-        },
-    },
-    "교육부": {
-        "code": "MOE_EDU",
-        "legal_reference": "교육부와 그 소속기관 직제 시행규칙",
-        "sub_departments": {
-            "학교정책과": {
-                "code": "SP",
-                "keywords": ["학교", "급식", "등록금", "장학금", "교실", "교복", "학사"],
-                "reason": "학교 운영·학생 지원 정책 소관",
-            },
-            "특수교육과": {
-                "code": "SE",
-                "keywords": ["특수교육", "장애학생", "통합교육", "보조기기", "개별화교육"],
-                "reason": "특수교육 지원 정책 소관",
+            "기업금융과": {
+                "code": "FUND",
+                "keywords": ["정책자금", "보증", "대출", "기업금융", "자금지원"],
+                "reason": "중소기업 금융지원 정책",
             },
         },
     },
     "식품의약품안전처": {
         "code": "MFDS",
+        "category": "central",
+        "aliases": ["식약처"],
         "legal_reference": "식품의약품안전처와 그 소속기관 직제 시행규칙",
+        "department_keywords": ["식품", "의약품", "위생", "부작용"],
         "sub_departments": {
             "식품관리총괄과": {
-                "code": "FOOD",
-                "keywords": ["식중독", "유통기한", "식품위생", "이물질", "불량식품", "위생점검"],
-                "reason": "식품안전 및 식품위생 정책·관리 소관",
+                "code": "FOOD_SAFE",
+                "keywords": ["식중독", "식품위생", "불량식품", "유통기한", "이물질"],
+                "reason": "식품안전 및 식품위생 정책·관리",
             },
             "의약품안전평가과": {
-                "code": "DRUG",
-                "keywords": ["의약품 부작용", "약 부작용", "허가", "안전성", "약물", "의약품"],
-                "reason": "의약품 안전성 평가 및 위해관리 소관",
+                "code": "DRUG_SAFE",
+                "keywords": ["의약품", "부작용", "의약품 허가", "안전성", "약물"],
+                "reason": "의약품 안전성 평가 및 위해관리",
+            },
+            "바이오의약품정책과": {
+                "code": "BIO",
+                "keywords": ["백신", "바이오의약품", "임상", "허가심사"],
+                "reason": "바이오의약품 정책 및 안전관리",
             },
         },
     },
-    "지방자치단체": {
-        "code": "LOCAL",
-        "legal_reference": "지방자치단체 행정기구 설치 조례 및 시행규칙",
+    "개인정보보호위원회": {
+        "code": "PIPC",
+        "category": "central",
+        "aliases": ["개보위"],
+        "legal_reference": "개인정보 보호 관련 중앙행정기관 소관 규정",
+        "department_keywords": ["개인정보", "유출", "동의", "보호"],
         "sub_departments": {
-            "민원여권과": {
-                "code": "CIVIL",
-                "keywords": ["주민등록", "등본", "초본", "인감", "여권", "민원실", "전입신고", "가족관계증명"],
-                "reason": "지자체 민원행정·여권 업무 소관",
+            "개인정보정책과": {
+                "code": "PIPC_POLICY",
+                "keywords": ["개인정보", "처리방침", "동의", "열람", "정정"],
+                "reason": "개인정보 보호정책·제도 총괄",
             },
-            "도시정비과": {
-                "code": "URBAN",
-                "keywords": ["재개발", "재건축", "도시계획", "불법건축물", "노점", "가로정비"],
-                "reason": "지자체 도시정비·도시계획 소관",
-            },
-            "복지정책과": {
-                "code": "WELFARE",
-                "keywords": ["기초생활", "복지급여", "한부모", "긴급복지", "복지상담"],
-                "reason": "지자체 생활복지·급여 지원 소관",
-            },
-            "환경관리과": {
-                "code": "LOCAL_ENV",
-                "keywords": ["생활쓰레기", "불법투기", "분리수거", "소음", "악취", "청소행정"],
-                "reason": "생활환경 관리 및 생활민원 처리 소관",
-            },
-            "교통행정과": {
-                "code": "LOCAL_TRAFFIC",
-                "keywords": ["불법주정차", "주차단속", "버스정류장", "마을버스", "교통민원", "주차구역"],
-                "reason": "생활교통 행정 및 교통민원 처리 소관",
+            "조사총괄과": {
+                "code": "PIPC_INV",
+                "keywords": ["개인정보 유출", "신고", "침해", "조사"],
+                "reason": "개인정보 침해 조사 및 대응",
             },
         },
     },
+    "공정거래위원회": {
+        "code": "FTC",
+        "category": "central",
+        "aliases": ["공정위"],
+        "legal_reference": "공정거래위원회 직제",
+        "department_keywords": ["공정거래", "담합", "불공정", "하도급"],
+        "sub_departments": {
+            "경쟁정책과": {
+                "code": "FTC_COMP",
+                "keywords": ["담합", "시장지배", "경쟁제한", "공정거래"],
+                "reason": "경쟁정책 및 경쟁제한행위 대응",
+            },
+            "소비자정책과": {
+                "code": "FTC_CONS",
+                "keywords": ["소비자피해", "표시광고", "약관", "환불", "청약철회"],
+                "reason": "소비자정책 및 소비자권익 보호",
+            },
+            "하도급조사과": {
+                "code": "FTC_SUB",
+                "keywords": ["하도급", "대금", "납품", "갑질", "불공정거래"],
+                "reason": "하도급 거래 공정성 확보",
+            },
+        },
+    },
+    "국민권익위원회": {
+        "code": "ACRC",
+        "category": "central",
+        "aliases": ["권익위"],
+        "legal_reference": "부패방지 및 국민권익위원회의 설치와 운영에 관한 법률",
+        "department_keywords": ["부패", "청렴", "고충", "행정심판"],
+        "sub_departments": {
+            "고충민원심의관": {
+                "code": "ACRC_GRV",
+                "keywords": ["고충민원", "권익침해", "시정권고", "민원조정"],
+                "reason": "고충민원 조사·조정 및 권고",
+            },
+            "부패방지국": {
+                "code": "ACRC_ANTI",
+                "keywords": ["부패", "청렴", "공익신고", "부정청탁"],
+                "reason": "부패방지 정책·신고제도 운영",
+            },
+            "행정심판총괄과": {
+                "code": "ACRC_APPEAL",
+                "keywords": ["행정심판", "처분 취소", "이의신청", "재결"],
+                "reason": "행정심판 제도 운영 및 심판지원",
+            },
+        },
+    },
+    "경찰청": {
+        "code": "NPA",
+        "category": "central",
+        "aliases": [],
+        "legal_reference": "경찰청과 그 소속기관 직제 시행규칙",
+        "department_keywords": ["치안", "교통", "수사", "신고"],
+        "sub_departments": {
+            "교통과": {
+                "code": "NPA_TRAFFIC",
+                "keywords": ["불법주정차", "음주운전", "신호위반", "교통단속", "면허"],
+                "reason": "교통단속 및 교통질서 확립",
+            },
+            "수사과": {
+                "code": "NPA_INV",
+                "keywords": ["폭행", "사기", "협박", "절도", "고소", "고발"],
+                "reason": "범죄수사 및 사건처리",
+            },
+            "생활안전과": {
+                "code": "NPA_SAFE",
+                "keywords": ["치안", "순찰", "생활안전", "범죄예방"],
+                "reason": "생활안전 및 지역치안 업무",
+            },
+        },
+    },
+    "소방청": {
+        "code": "NFA",
+        "category": "central",
+        "aliases": [],
+        "legal_reference": "소방청과 그 소속기관 직제 시행규칙",
+        "department_keywords": ["화재", "구급", "구조", "소방"],
+        "sub_departments": {
+            "화재예방총괄과": {
+                "code": "NFA_FIRE",
+                "keywords": ["화재", "소방점검", "소방시설", "화재예방"],
+                "reason": "화재예방 정책 및 안전관리",
+            },
+            "119구급과": {
+                "code": "NFA_119",
+                "keywords": ["119", "구급", "응급이송", "구조"],
+                "reason": "119 구급서비스 정책 운영",
+            },
+            "소방분석제도과": {
+                "code": "NFA_ANALYSIS",
+                "keywords": ["소방제도", "소방통계", "안전지표", "소방정책"],
+                "reason": "소방정책 분석 및 제도개선",
+            },
+        },
+    },
+}
+
+
+LOCAL_GOVERNMENT_ENTITIES = [
+    {"name": "서울특별시", "code": "SEOUL", "aliases": ["서울", "서울시"]},
+    {"name": "부산광역시", "code": "BUSAN", "aliases": ["부산", "부산시"]},
+    {"name": "대구광역시", "code": "DAEGU", "aliases": ["대구", "대구시"]},
+    {"name": "인천광역시", "code": "INCHEON", "aliases": ["인천", "인천시"]},
+    {"name": "광주광역시", "code": "GWANGJU", "aliases": ["광주", "광주시"]},
+    {"name": "대전광역시", "code": "DAEJEON", "aliases": ["대전", "대전시"]},
+    {"name": "울산광역시", "code": "ULSAN", "aliases": ["울산", "울산시"]},
+    {"name": "세종특별자치시", "code": "SEJONG", "aliases": ["세종", "세종시"]},
+    {"name": "경기도", "code": "GYEONGGI", "aliases": ["경기", "경기도청"]},
+    {"name": "강원특별자치도", "code": "GANGWON", "aliases": ["강원", "강원도"]},
+    {"name": "충청북도", "code": "CHUNGBUK", "aliases": ["충북"]},
+    {"name": "충청남도", "code": "CHUNGNAM", "aliases": ["충남"]},
+    {"name": "전북특별자치도", "code": "JEONBUK", "aliases": ["전북", "전라북도"]},
+    {"name": "전라남도", "code": "JEONNAM", "aliases": ["전남"]},
+    {"name": "경상북도", "code": "GYEONGBUK", "aliases": ["경북"]},
+    {"name": "경상남도", "code": "GYEONGNAM", "aliases": ["경남"]},
+    {"name": "제주특별자치도", "code": "JEJU", "aliases": ["제주", "제주도"]},
+]
+
+
+LOCAL_COMMON_SUB_DEPARTMENTS = {
+    "민원여권과": {
+        "code": "CIVIL",
+        "keywords": ["주민등록", "등본", "초본", "전입신고", "인감", "여권", "가족관계증명"],
+        "reason": "주민민원·여권·제증명 민원 처리",
+    },
+    "복지정책과": {
+        "code": "WEL",
+        "keywords": ["기초생활", "복지급여", "긴급복지", "한부모", "돌봄", "복지상담"],
+        "reason": "지역 복지정책 및 복지급여 지원",
+    },
+    "환경정책과": {
+        "code": "ENV",
+        "keywords": ["생활쓰레기", "불법투기", "분리수거", "악취", "소음", "청소"],
+        "reason": "생활환경 및 청소행정 민원 처리",
+    },
+    "교통행정과": {
+        "code": "TRAFFIC",
+        "keywords": ["불법주정차", "주차단속", "버스정류장", "마을버스", "교통민원"],
+        "reason": "생활교통·주차·교통민원 처리",
+    },
+    "도시계획과": {
+        "code": "URBAN",
+        "keywords": ["재개발", "재건축", "도시계획", "불법건축", "건축허가", "용도지역"],
+        "reason": "도시계획·건축 관련 민원 처리",
+    },
+    "감사담당관": {
+        "code": "AUDIT",
+        "keywords": ["공무원 비위", "징계", "감사", "복무", "직무태만", "갑질"],
+        "reason": "지자체 소속 공직자 감사·징계 관련 업무",
+    },
+}
+
+
+def _build_local_government_rules() -> dict:
+    rules = {}
+    for entity in LOCAL_GOVERNMENT_ENTITIES:
+        sub_departments = {}
+        for sub_name, sub_meta in LOCAL_COMMON_SUB_DEPARTMENTS.items():
+            sub_departments[sub_name] = {
+                "code": f"{entity['code']}_{sub_meta['code']}",
+                "keywords": [*sub_meta["keywords"], entity["name"], *entity.get("aliases", [])],
+                "reason": sub_meta["reason"],
+            }
+
+        rules[entity["name"]] = {
+            "code": f"LOCAL_{entity['code']}",
+            "category": "local",
+            "aliases": entity.get("aliases", []),
+            "legal_reference": "지방자치단체 행정기구 설치 조례 및 시행규칙",
+            "department_keywords": ["시청", "도청", "군청", "구청", "주민센터", *entity.get("aliases", [])],
+            "sub_departments": sub_departments,
+        }
+
+    return rules
+
+
+LEGAL_CLASSIFICATION_RULES = {
+    **CENTRAL_CLASSIFICATION_RULES,
+    **_build_local_government_rules(),
 }
